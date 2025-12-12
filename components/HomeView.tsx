@@ -5,6 +5,9 @@ import { useUserProfile } from '../hooks/useUserProfile';
 import { useLibrary } from '../hooks/useLibrary';
 import ProfileDialog from './ProfileDialog';
 import { Song, Playlist } from '../types';
+import CreatePlaylistDialog from './CreatePlaylistDialog';
+import { userDataService } from '../services/userDataService';
+import { useEffect } from 'react';
 
 interface HomeViewProps {
     onNavigateToPlayer: () => void;
@@ -47,6 +50,65 @@ const HomeView: React.FC<HomeViewProps> = ({
 
     const displayGreeting = `${greeting || timeGreeting()}, ${profile.username}`;
 
+    const [showCreateDialog, setShowCreateDialog] = useState(false);
+
+    // Dynamic Counts
+    const [likedCount, setLikedCount] = useState(0);
+    const [recentCount, setRecentCount] = useState(0);
+
+    useEffect(() => {
+        setLikedCount(userDataService.getLikedSongs().length);
+        setRecentCount(userDataService.getRecentSongs().length);
+
+        // Listen for storage events to update counts across tabs or components?
+        // Or just re-fetch when HomeView mounts/focuses.
+        // For now, simple mount fetch is enough.
+    }, [isProfileOpen]); // Refresh when profile closes/opens just in case (hacky but simple)
+
+
+    const handleOpenQuickAccess = async (type: 'liked' | 'recent' | 'local') => {
+        let title = "";
+        let songs: Song[] = [];
+        let id = "";
+
+        if (type === 'liked') {
+            title = "Liked Songs";
+            songs = userDataService.getLikedSongs();
+            id = "liked_songs_virtual";
+        } else if (type === 'recent') {
+            title = "Recently Played";
+            songs = userDataService.getRecentSongs();
+            id = "recent_songs_virtual";
+            // TODO: Ensure uniqueness or playback issues? Queue handles it.
+        } else if (type === 'local') {
+            title = "Local Files";
+            // We don't have a specific store for all local files other than what's in Library playlists or current queue.
+            // But usually apps show all "Imported" files.
+            // Since we don't persist "All Local Files" explicitly in a single list, 
+            // maybe we can aggregate from all playlists that are "Local" or just show a message or empty.
+            // For now, let's show an empty list or try to prompt import logic.
+            // Actually, we can just filter all songs in all playlists? Or just use a placeholder.
+            // Let's create a placeholder for now as "Local Files" usually implies a file browser which we implemented via "Import Folder".
+            id = "local_files_virtual";
+            songs = []; // TODO: Aggregate from DB
+        }
+
+        const virtualPlaylist: Playlist = {
+            id,
+            name: title,
+            createdAt: Date.now(),
+            songs,
+            coverUrl: undefined // Could use specific icons
+        };
+
+        if (type === 'local' && songs.length === 0) {
+            // Maybe trigger import instead?
+            // For now just open empty playlist
+        }
+
+        setSelectedPlaylist(virtualPlaylist);
+    };
+
     return (
         <div className="w-full h-full relative z-30 flex flex-col p-6 lg:p-12 overflow-y-auto custom-scrollbar">
             {/* Header */}
@@ -81,24 +143,44 @@ const HomeView: React.FC<HomeViewProps> = ({
 
             {/* Quick Access Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-                {[
-                    { icon: HeartIcon, title: "Liked Songs", count: "128 tracks", color: "from-pink-500/20 to-rose-500/20" },
-                    { icon: ClockIcon, title: "Recently Played", count: "Top 50", color: "from-blue-500/20 to-cyan-500/20" },
-                    { icon: CloudDownloadIcon, title: "Local Files", count: "Imported", color: "from-emerald-500/20 to-teal-500/20" },
-                ].map((item, idx) => (
-                    <div
-                        key={idx}
-                        className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${item.color} backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1`}
-                    >
-                        <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
-                            <item.icon className="w-12 h-12 text-white/20" />
-                        </div>
-                        <div className="relative z-10 flex flex-col h-full justify-end">
-                            <h3 className="text-2xl font-bold text-white mb-1">{item.title}</h3>
-                            <p className="text-white/60">{item.count}</p>
-                        </div>
+                <div
+                    onClick={() => handleOpenQuickAccess('liked')}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1"
+                >
+                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
+                        <HeartIcon className="w-12 h-12 text-white/20" />
                     </div>
-                ))}
+                    <div className="relative z-10 flex flex-col h-full justify-end">
+                        <h3 className="text-2xl font-bold text-white mb-1">Liked Songs</h3>
+                        <p className="text-white/60">{likedCount} tracks</p>
+                    </div>
+                </div>
+
+                <div
+                    onClick={() => handleOpenQuickAccess('recent')}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1"
+                >
+                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
+                        <ClockIcon className="w-12 h-12 text-white/20" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-end">
+                        <h3 className="text-2xl font-bold text-white mb-1">Recently Played</h3>
+                        <p className="text-white/60">{recentCount} tracks</p>
+                    </div>
+                </div>
+
+                <div
+                    onClick={() => handleOpenQuickAccess('local')}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1"
+                >
+                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
+                        <CloudDownloadIcon className="w-12 h-12 text-white/20" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-end">
+                        <h3 className="text-2xl font-bold text-white mb-1">Local Files</h3>
+                        <p className="text-white/60">Imported</p>
+                    </div>
+                </div>
             </div>
 
             {/* Playlists Section (Placeholder) */}
@@ -111,7 +193,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {/* Create New Card */}
                     <div
-                        onClick={handleCreatePlaylist}
+                        onClick={() => setShowCreateDialog(true)}
                         className="aspect-square rounded-2xl bg-white/5 border border-white/5 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors group"
                     >
                         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -209,6 +291,15 @@ const HomeView: React.FC<HomeViewProps> = ({
                     />
                 </div>
             )}
+            {/* Create Playlist Dialog */}
+            <CreatePlaylistDialog
+                isOpen={showCreateDialog}
+                onClose={() => setShowCreateDialog(false)}
+                onCreate={(name) => {
+                    createPlaylist(name);
+                    setShowCreateDialog(false);
+                }}
+            />
         </div>
     );
 };

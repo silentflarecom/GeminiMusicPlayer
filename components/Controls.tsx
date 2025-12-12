@@ -20,6 +20,7 @@ import {
   SettingsIcon,
   QueueIcon,
   PlusIcon,
+  SparklesIcon,
 } from "./Icons";
 import { PlayMode } from "../types";
 
@@ -52,6 +53,8 @@ interface ControlsProps {
   onAddToPlaylist: () => void;
   isBuffering: boolean;
   bufferProgress: number;
+  visualizerMode?: 'fluid' | 'gradient';
+  onToggleVisualizerMode?: () => void;
 }
 
 
@@ -84,6 +87,8 @@ const Controls: React.FC<ControlsProps> = ({
   bufferProgress,
   onAddToPlaylist,
   isBuffering,
+  visualizerMode,
+  onToggleVisualizerMode
 }) => {
   const volumeContainerRef = useRef<HTMLDivElement>(null);
   const settingsContainerRef = useRef<HTMLDivElement>(null);
@@ -539,7 +544,18 @@ const Controls: React.FC<ControlsProps> = ({
             )}
           </div>
 
-          {/* 7. Playlist/Queue */}
+          {/* 7. Visualizer Toggle (New) */}
+          {onToggleVisualizerMode && (
+            <button
+              onClick={onToggleVisualizerMode}
+              className={`p-2 rounded-full hover:bg-white/10 transition-colors ${visualizerMode === 'fluid' ? 'text-white' : 'text-white/40'}`}
+              title={`Visualizer: ${visualizerMode === 'fluid' ? 'Fluid' : 'Gradient'}`}
+            >
+              <SparklesIcon className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* 8. Playlist/Queue */}
           <button
             onClick={onTogglePlaylist}
             className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white"

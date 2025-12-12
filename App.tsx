@@ -79,6 +79,7 @@ const App: React.FC = () => {
 
   // View Routing State
   const [currentView, setCurrentView] = useState<ViewState>("home");
+  const [visualizerMode, setVisualizerMode] = useState<'fluid' | 'gradient'>('fluid');
 
   // Auto-switch to player when a song starts playing from a non-playing state?
   // Or just let user control it. 
@@ -402,6 +403,7 @@ const App: React.FC = () => {
         coverUrl={currentSong?.coverUrl}
         isPlaying={playState === PlayState.PLAYING}
         isMobileLayout={isMobileLayout}
+        visualizerMode={visualizerMode}
       />
 
       <audio
@@ -511,6 +513,8 @@ const App: React.FC = () => {
           isMobileLayout={isMobileLayout}
           showPlaylist={showPlaylist}
           setShowPlaylist={setShowPlaylist}
+          visualizerMode={visualizerMode}
+          onToggleVisualizerMode={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
           showVolumePopup={showVolumePopup}
           setShowVolumePopup={setShowVolumePopup}
           showSettingsPopup={showSettingsPopup}
