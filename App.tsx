@@ -12,6 +12,7 @@ import { usePlaylist } from "./hooks/usePlaylist";
 import { usePlayer } from "./hooks/usePlayer";
 import { keyboardRegistry } from "./services/keyboardRegistry";
 import MediaSessionController from "./components/MediaSessionController";
+import { CloudDownloadIcon } from "./components/Icons";
 
 const App: React.FC = () => {
   const { toast } = useToast();
@@ -65,6 +66,53 @@ const App: React.FC = () => {
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Global Drag & Drop State
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setIsDraggingFile(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+    dragCounter.current = 0;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const wasEmpty = playlist.queue.length === 0;
+      const addedSongs = await playlist.addLocalFiles(files);
+      if (addedSongs.length > 0) {
+        setTimeout(() => {
+          handlePlaylistAddition(addedSongs, wasEmpty);
+        }, 0);
+        toast.success(`Imported ${addedSongs.length} local files`);
+      }
+    }
+  };
+
   const mobileViewportRef = useRef<HTMLDivElement>(null);
   const [paneWidth, setPaneWidth] = useState(() => {
     if (typeof window === "undefined") return 0;
@@ -308,7 +356,13 @@ const App: React.FC = () => {
   const mobileTranslate = baseOffset + dragOffsetX;
 
   return (
-    <div className="relative w-full h-screen flex flex-col overflow-hidden">
+    <div
+      className="relative w-full h-screen flex flex-col overflow-hidden"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <FluidBackground
         key={isMobileLayout ? "mobile" : "desktop"}
         colors={currentSong?.colors || []}
@@ -428,6 +482,21 @@ const App: React.FC = () => {
         <div className="flex-1 grid lg:grid-cols-2 w-full h-full">
           {controlsSection}
           {lyricsSection}
+        </div>
+      )}
+
+      {/* Drag & Drop Overlay */}
+      {isDraggingFile && (
+        <div className="absolute inset-0 z-[100] bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-200">
+          <div className="w-32 h-32 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center mb-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <CloudDownloadIcon className="w-16 h-16 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">
+            Drop to Import
+          </h2>
+          <p className="text-white/60 text-lg mt-2">
+            Add music files or lyrics
+          </p>
         </div>
       )}
     </div>
