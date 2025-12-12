@@ -592,14 +592,7 @@ export const usePlayer = ({
         }
       }
       mediaSource = null;
-      
-      // Don't revoke immediately to avoid race conditions with audio.load() on error
-      if (currentObjectUrl) {
-        const urlToRevoke = currentObjectUrl;
-        setTimeout(() => URL.revokeObjectURL(urlToRevoke), 2000);
-        currentObjectUrl = null;
-      }
-      
+      releaseObjectUrl();
       if (!canceled) {
         setResolvedAudioSrc(null);
       }
@@ -826,9 +819,6 @@ export const usePlayer = ({
           const fallbackBlob = await response.blob();
           if (canceled) return;
           audioResourceCache.set(fileUrl, fallbackBlob);
-          const objectUrl = URL.createObjectURL(fallbackBlob);
-          currentObjectUrl = objectUrl;
-          setResolvedAudioSrc(objectUrl);
           setBufferProgress(1);
           return;
         }
@@ -861,9 +851,6 @@ export const usePlayer = ({
           type: response.headers.get("content-type") || "audio/mpeg",
         });
         audioResourceCache.set(fileUrl, blob);
-        const objectUrl = URL.createObjectURL(blob);
-        currentObjectUrl = objectUrl;
-        setResolvedAudioSrc(objectUrl);
         setBufferProgress(1);
       } catch (error) {
         if (!canceled) {
