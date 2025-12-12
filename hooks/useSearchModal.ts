@@ -33,7 +33,16 @@ export const useSearchModal = ({
 }: UseSearchModalParams) => {
   // Search query state
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [activeTab, setActiveTab] = useState<SearchSource>("queue");
+
+  // Debounce query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query]);
 
   // Navigation State
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -55,10 +64,10 @@ export const useSearchModal = ({
   const [neteaseOffset, setNeteaseOffset] = useState(0);
   const LIMIT = 30;
 
-  // Update queue results in real-time
+  // Update queue results with debounce
   useEffect(() => {
     if (activeTab === "queue") {
-      queueProvider.search(query).then((results) => {
+      queueProvider.search(debouncedQuery).then((results) => {
         const mappedResults = (results as Song[]).map((s) => {
           const originalIndex = queue.findIndex((qs) => qs.id === s.id);
           return { s, i: originalIndex };
@@ -66,7 +75,7 @@ export const useSearchModal = ({
         setQueueResults(mappedResults);
       });
     }
-  }, [query, activeTab, queue]);
+  }, [debouncedQuery, activeTab, queue]);
 
   // Reset selected index when switching tabs or query changes
   useEffect(() => {

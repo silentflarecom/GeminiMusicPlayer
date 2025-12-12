@@ -14,6 +14,7 @@ import {
   searchAndMatchLyrics,
 } from "../services/lyricsService";
 import { audioResourceCache } from "../services/cache";
+import { useToast } from "./useToast";
 
 type MatchStatus = "idle" | "matching" | "success" | "failed";
 
@@ -59,6 +60,8 @@ export const usePlayer = ({
   const [matchStatus, setMatchStatus] = useState<MatchStatus>("idle");
   const audioRef = useRef<HTMLAudioElement>(null);
   const isSeekingRef = useRef(false);
+  const { toast } = useToast();
+  const [retryCount, setRetryCount] = useState(0);
 
   const pauseAndResetCurrentAudio = useCallback(() => {
     if (!audioRef.current) return;
@@ -93,7 +96,8 @@ export const usePlayer = ({
     else nextMode = PlayMode.LOOP_ALL;
 
     setPlayMode(nextMode);
-    setMatchStatus("idle");
+    // Don't reset matchStatus here, as current song remains playing
+
 
     if (nextMode === PlayMode.SHUFFLE) {
       reorderForShuffle();
@@ -406,18 +410,42 @@ export const usePlayer = ({
     if (!audio) return;
 
     const handleAudioError = () => {
-      console.warn("Audio playback error detected");
-      audio.pause();
-      audio.currentTime = 0;
-      setPlayState(PlayState.PAUSED);
-      setCurrentTime(0);
+      const errorCode = audio.error?.code;
+      const errorMessage = audio.error?.message || "Unknown error";
+      console.warn(`Audio playback error detected (Code: ${errorCode}):`, errorMessage);
+
+      if (retryCount < 3) {
+        toast.error(`Playback error. Retrying... (${retryCount + 1}/3)`);
+        setRetryCount((prev) => prev + 1);
+
+        // Attempt to reload the audio source
+        const currentSrc = audio.src;
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.load();
+            audioRef.current.play().catch(e => console.warn("Retry play failed", e));
+          }
+        }, 1000);
+      } else {
+        toast.error("Playback failed after multiple attempts. Please check your connection or try another song.");
+        audio.pause();
+        setPlayState(PlayState.PAUSED);
+      }
     };
 
+    // Reset retry count when a new song starts playing successfully
+    const handlePlaying = () => {
+      setRetryCount(0);
+    }
+
     audio.addEventListener("error", handleAudioError);
+    audio.addEventListener("playing", handlePlaying);
+
     return () => {
       audio.removeEventListener("error", handleAudioError);
+      audio.removeEventListener("playing", handlePlaying);
     };
-  }, [audioRef]);
+  }, [audioRef, retryCount, toast]);
 
   // Provide high-precision time updates directly from the native audio element
   useEffect(() => {
@@ -528,11 +556,20 @@ export const usePlayer = ({
     };
 
     const cleanupSourceBuffer = () => {
-      if (sourceBuffer && sourceUpdateHandler) {
+      if (sourceBuffer) {
+        if (sourceUpdateHandler) {
+          try {
+            sourceBuffer.removeEventListener("updateend", sourceUpdateHandler);
+          } catch (e) {
+            // Listener removal might fail if object is invalid
+          }
+        }
         try {
-          sourceBuffer.removeEventListener("updateend", sourceUpdateHandler);
-        } catch {
-          // Ignore cleanup errors
+          if (sourceBuffer.updating) {
+            sourceBuffer.abort();
+          }
+        } catch (e) {
+          // Abort might fail if media source is closed or buffer removed
         }
       }
       sourceBuffer = null;

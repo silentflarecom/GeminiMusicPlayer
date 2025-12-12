@@ -250,8 +250,8 @@ export class LyricLine implements ILyricLine {
       const isWordActive = elapsed >= 0 && elapsed < duration;
 
       // Check condition for Glow Animation
-      // Apply glow only to short words (length <= 7) that are currently playing
-      if (w.text.length <= 7 && duration > 1.5 && isWordActive) {
+      // Apply glow to all active words, adapting intensity for shorter durations
+      if (isWordActive) {
         this.ctx.save();
         this.ctx.translate(w.x, w.y);
 
@@ -262,7 +262,8 @@ export class LyricLine implements ILyricLine {
         // 2. Sustain: Hold
         // 3. Release: Fade out (1 -> 0) near the end
         let glowIntensity = 1;
-        const fadeDuration = 0.2; // Seconds for fade
+        // Adapt fade duration for short words: max 0.2s, or 15% of duration
+        const fadeDuration = Math.min(0.2, duration * 0.15);
         const fadeOutStart = Math.max(0, duration - fadeDuration);
 
         if (elapsed < fadeDuration) {
@@ -632,8 +633,7 @@ export class LyricLine implements ILyricLine {
     this.ctx.textBaseline = "top";
     const lang = detectLanguage(this.lyricLine.text);
 
-    // @ts-ignore: Intl.Segmenter
-
+    // Use Intl.Segmenter if available
     const segmenter =
       typeof Intl !== "undefined" && Intl.Segmenter
         ? new Intl.Segmenter(lang, { granularity: "word" })

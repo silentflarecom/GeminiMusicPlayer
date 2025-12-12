@@ -1,10 +1,5 @@
 import { fetchViaProxy } from "./utils";
-
-const LYRIC_API_BASE = "https://163api.qijieya.cn";
-const METING_API = "https://api.qijieya.cn/meting/";
-const NETEASE_SEARCH_API = "https://163api.qijieya.cn/cloudsearch";
-const NETEASE_API_BASE = "http://music.163.com/api";
-const NETEASECLOUD_API_BASE = "https://163api.qijieya.cn";
+import { API_CONFIG } from "./config";
 
 const METADATA_KEYWORDS = [
   "歌词贡献者",
@@ -163,8 +158,9 @@ const extractMetadataLines = (content: string) => {
 };
 
 export const getNeteaseAudioUrl = (id: string) => {
-  return `${METING_API}?type=url&id=${id}`;
+  return `${API_CONFIG.METING_API_URL}?type=url&id=${id}`;
 };
+
 
 // Implements the search logic from the user provided code snippet
 export const searchNetEase = async (
@@ -172,7 +168,7 @@ export const searchNetEase = async (
   options: SearchOptions = {},
 ): Promise<NeteaseTrackInfo[]> => {
   const { limit = 20, offset = 0 } = options;
-  const searchApiUrl = `${NETEASE_SEARCH_API}?keywords=${encodeURIComponent(
+  const searchApiUrl = `${API_CONFIG.NETEASE_SEARCH_API}?keywords=${encodeURIComponent(
     keyword,
   )}&limit=${limit}&offset=${offset}`;
 
@@ -205,7 +201,7 @@ export const fetchNeteasePlaylist = async (
     let shouldContinue = true;
 
     while (shouldContinue) {
-      const url = `${NETEASECLOUD_API_BASE}/playlist/track/all?id=${playlistId}&limit=${limit}&offset=${offset}`;
+      const url = `${API_CONFIG.NETEASE_BASE_URL}/playlist/track/all?id=${playlistId}&limit=${limit}&offset=${offset}`;
       const data = (await fetchViaProxy(url)) as NeteasePlaylistResponse;
       const songs = data.songs ?? [];
       if (songs.length === 0) {
@@ -235,7 +231,7 @@ export const fetchNeteaseSong = async (
   songId: string,
 ): Promise<NeteaseTrackInfo | null> => {
   try {
-    const url = `${NETEASECLOUD_API_BASE}/song/detail?ids=${songId}`;
+    const url = `${API_CONFIG.NETEASE_BASE_URL}/song/detail?ids=${songId}`;
     const data = (await fetchViaProxy(
       url,
     )) as NeteaseSongDetailResponse;
@@ -279,7 +275,7 @@ export const fetchLyricsById = async (
 ): Promise<{ lrc: string; yrc?: string; tLrc?: string; metadata: string[] } | null> => {
   try {
     // 使用網易雲音樂 API 獲取歌詞
-    const lyricUrl = `${NETEASECLOUD_API_BASE}/lyric/new?id=${songId}`;
+    const lyricUrl = `${API_CONFIG.NETEASE_BASE_URL}/lyric/new?id=${songId}`;
     const lyricData = await fetchViaProxy(lyricUrl);
 
     const rawYrc = lyricData.yrc?.lyric;

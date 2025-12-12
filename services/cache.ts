@@ -7,12 +7,17 @@ const isMobileViewport = () => {
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
 };
 
-const createSizeLimitedLRU = (limitBytes: number) => {
+const createSizeLimitedLRU = (limitBytesOrFn: number | (() => number)) => {
   const map = new Map<string, { blob: Blob; size: number }>();
   let totalSize = 0;
 
+  const getLimit = () => {
+    return typeof limitBytesOrFn === "function" ? limitBytesOrFn() : limitBytesOrFn;
+  };
+
   const evictIfNeeded = () => {
-    while (totalSize > limitBytes && map.size > 0) {
+    const limit = getLimit();
+    while (totalSize > limit && map.size > 0) {
       const oldestKey = map.keys().next().value;
       if (!oldestKey) break;
       const entry = map.get(oldestKey);
@@ -33,7 +38,8 @@ const createSizeLimitedLRU = (limitBytes: number) => {
     },
     set(key: string, blob: Blob) {
       const size = blob.size || 0;
-      if (size <= 0 || size > limitBytes) {
+      const limit = getLimit();
+      if (size <= 0 || size > limit) {
         return;
       }
       if (map.has(key)) {
@@ -57,20 +63,17 @@ const createSizeLimitedLRU = (limitBytes: number) => {
       map.clear();
       totalSize = 0;
     },
-    getLimit() {
-      return limitBytes;
-    },
+    getLimit,
   };
 };
-
-const IMAGE_CACHE_LIMIT = isMobileViewport() ? 50 * 1024 * 1024 : 100 * 1024 * 1024;
-const AUDIO_CACHE_LIMIT = isMobileViewport() ? 100 * 1024 * 1024 : 200 * 1024 * 1024;
-const RAW_IMAGE_CACHE_LIMIT = 50 * 1024 * 1024;
+const getImageCacheLimit = () => isMobileViewport() ? 50 * 1024 * 1024 : 100 * 1024 * 1024;
+const getAudioCacheLimit = () => isMobileViewport() ? 100 * 1024 * 1024 : 200 * 1024 * 1024;
+const RAW_IMAGE_CACHE_LIMIT = 50 * 1024 * 1024; // Keep raw cache small and static
 
 const rawImageCache = createSizeLimitedLRU(RAW_IMAGE_CACHE_LIMIT);
 
-export const imageResourceCache = createSizeLimitedLRU(IMAGE_CACHE_LIMIT);
-export const audioResourceCache = createSizeLimitedLRU(AUDIO_CACHE_LIMIT);
+export const imageResourceCache = createSizeLimitedLRU(getImageCacheLimit);
+export const audioResourceCache = createSizeLimitedLRU(getAudioCacheLimit);
 
 export const fetchImageBlobWithCache = async (url: string): Promise<Blob> => {
   const cached = rawImageCache.get(url);
