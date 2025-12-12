@@ -259,7 +259,8 @@ const ImmersivePlayer: React.FC<ImmersivePlayerProps> = ({
             <TopBar
                 onFilesSelected={onFilesSelected}
                 onSearchClick={onSearchClick}
-            // We might want to pass a prop to TopBar to handle Logo Click
+                onLogoClick={onNavigateHome}
+                onHomeClick={onNavigateHome} // New prop for explicit button
             />
             {/* We need to modify TopBar to accept onLogoClick if we want that, 
            OR we just assume TopBar is generic. 

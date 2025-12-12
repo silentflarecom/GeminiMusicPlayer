@@ -452,12 +452,12 @@ const App: React.FC = () => {
       {/* Animated View Transitions */}
       {(() => {
         const transitions = useTransition(currentView, {
-          initial: { opacity: 1, transform: "translate3d(0,0%,0) scale(1)" },
-          from: { opacity: 0, transform: "translate3d(0,10%,0) scale(0.98)" },
-          enter: { opacity: 1, transform: "translate3d(0,0%,0) scale(1)" },
-          leave: { opacity: 0, transform: "translate3d(0,-5%,0) scale(0.98)", pointerEvents: "none" },
-          config: { mass: 1, tension: 280, friction: 30 },
-          exitBeforeEnter: false, // Overlapping for seamless feel
+          initial: { opacity: 1, transform: "scale(1) translate3d(0,0,0)", filter: "blur(0px)" },
+          from: { opacity: 0, transform: "scale(0.95) translate3d(0,20px,0)", filter: "blur(4px)" },
+          enter: { opacity: 1, transform: "scale(1) translate3d(0,0,0)", filter: "blur(0px)" },
+          leave: { opacity: 0, transform: "scale(1.05) translate3d(0,-20px,0)", filter: "blur(4px)", pointerEvents: "none" },
+          config: { mass: 1, tension: 220, friction: 28, clamp: true },
+          exitBeforeEnter: false,
         });
 
         return transitions((style, item) => (

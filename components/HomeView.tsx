@@ -1,13 +1,12 @@
-
 import { PlayIcon, QueueIcon, SettingsIcon, UserIcon, LikeIcon as HeartIcon, ClockIcon, CloudDownloadIcon } from './Icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useTransition, animated } from '@react-spring/web';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useLibrary } from '../hooks/useLibrary';
 import ProfileDialog from './ProfileDialog';
 import { Song, Playlist } from '../types';
 import CreatePlaylistDialog from './CreatePlaylistDialog';
 import { userDataService } from '../services/userDataService';
-import { useEffect } from 'react';
 
 interface HomeViewProps {
     onNavigateToPlayer: () => void;
@@ -161,7 +160,7 @@ const HomeView: React.FC<HomeViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                 <div
                     onClick={() => handleOpenQuickAccess('liked')}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1"
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
                 >
                     <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
                         <HeartIcon className="w-12 h-12 text-white/20" />
@@ -174,7 +173,7 @@ const HomeView: React.FC<HomeViewProps> = ({
 
                 <div
                     onClick={() => handleOpenQuickAccess('recent')}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1"
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
                 >
                     <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
                         <ClockIcon className="w-12 h-12 text-white/20" />
@@ -187,7 +186,7 @@ const HomeView: React.FC<HomeViewProps> = ({
 
                 <div
                     onClick={() => handleOpenQuickAccess('local')}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1"
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
                 >
                     <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
                         <CloudDownloadIcon className="w-12 h-12 text-white/20" />
@@ -222,7 +221,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                     {playlists.map((playlist) => (
                         <div
                             key={playlist.id}
-                            className="group cursor-pointer"
+                            className="group cursor-pointer active:scale-95 transition-transform duration-200"
                             onClick={() => setSelectedPlaylist(playlist)}
                         >
                             <div className="aspect-square rounded-2xl bg-gradient-to-br from-purple-900/50 to-slate-900/50 border border-white/5 mb-3 overflow-hidden relative">
@@ -284,29 +283,38 @@ const HomeView: React.FC<HomeViewProps> = ({
                 onSave={updateProfile}
             />
 
-            {/* Playlist Detail Overlay */}
-            {selectedPlaylist && (
-                <div className="absolute inset-0 z-50">
-                    <PlaylistDetail
-                        playlist={selectedPlaylist}
-                        onBack={() => setSelectedPlaylist(null)}
-                        currentSong={currentSong}
-                        isPlaying={isPlaying}
-                        onDelete={(id) => {
-                            deletePlaylist(id);
-                            setSelectedPlaylist(null);
-                        }}
-                        onPlay={(song) => {
-                            // Find index in playlist
-                            const index = selectedPlaylist.songs.findIndex(s => s.id === song.id);
-                            if (index !== -1) {
-                                onPlayPlaylist(selectedPlaylist.songs, index);
-                                onNavigateToPlayer();
-                            }
-                        }}
-                    />
-                </div>
-            )}
+            {/* Playlist Detail Overlay Transition */}
+            {(() => {
+                const transitions = useTransition(selectedPlaylist, {
+                    from: { opacity: 0, transform: 'translate3d(0, 100%, 0)' },
+                    enter: { opacity: 1, transform: 'translate3d(0, 0%, 0)' },
+                    leave: { opacity: 0, transform: 'translate3d(0, 50%, 0)' },
+                    config: { tension: 280, friction: 30, clamp: true },
+                });
+
+                return transitions((style, item) => item && (
+                    <animated.div style={style} className="absolute inset-0 z-50">
+                        <PlaylistDetail
+                            playlist={item}
+                            onBack={() => setSelectedPlaylist(null)}
+                            currentSong={currentSong}
+                            isPlaying={isPlaying}
+                            onDelete={(id) => {
+                                deletePlaylist(id);
+                                setSelectedPlaylist(null);
+                            }}
+                            onPlay={(song) => {
+                                // Find index in playlist
+                                const index = item.songs.findIndex(s => s.id === song.id);
+                                if (index !== -1) {
+                                    onPlayPlaylist(item.songs, index);
+                                    onNavigateToPlayer();
+                                }
+                            }}
+                        />
+                    </animated.div>
+                ));
+            })()}
             {/* Create Playlist Dialog */}
             <CreatePlaylistDialog
                 isOpen={showCreateDialog}
