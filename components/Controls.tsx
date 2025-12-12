@@ -21,6 +21,8 @@ import {
   QueueIcon,
   PlusIcon,
   SparklesIcon,
+  LikeIcon,
+  LikeFilledIcon,
 } from "./Icons";
 import { PlayMode } from "../types";
 
@@ -55,6 +57,8 @@ interface ControlsProps {
   bufferProgress: number;
   visualizerMode?: 'fluid' | 'gradient';
   onToggleVisualizerMode?: () => void;
+  isLiked?: boolean;
+  onToggleLike?: () => void;
 }
 
 
@@ -88,7 +92,9 @@ const Controls: React.FC<ControlsProps> = ({
   onAddToPlaylist,
   isBuffering,
   visualizerMode,
-  onToggleVisualizerMode
+  onToggleVisualizerMode,
+  isLiked,
+  onToggleLike
 }) => {
   const volumeContainerRef = useRef<HTMLDivElement>(null);
   const settingsContainerRef = useRef<HTMLDivElement>(null);
@@ -445,7 +451,18 @@ const Controls: React.FC<ControlsProps> = ({
             {getModeIcon()}
           </button>
 
-          {/* Add to Playlist (New Button) */}
+          {/* Like Button */}
+          {onToggleLike && (
+            <button
+              onClick={onToggleLike}
+              className={`p-2 rounded-full hover:bg-white/10 transition-all duration-200 ${isLiked ? 'text-red-500 scale-110' : 'text-white/60 hover:text-white'}`}
+              title={isLiked ? "Unlike" : "Like"}
+            >
+              {isLiked ? <LikeFilledIcon className="w-5 h-5" /> : <LikeIcon className="w-5 h-5" />}
+            </button>
+          )}
+
+          {/* Add to Playlist */}
           <button
             onClick={onAddToPlaylist}
             className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white"

@@ -57,6 +57,8 @@ interface ImmersivePlayerProps {
     onAddToPlaylist: (songs: Song[]) => void;
     visualizerMode?: 'fluid' | 'gradient';
     onToggleVisualizerMode?: () => void;
+    isLiked?: boolean;
+    onToggleLike?: () => void;
 }
 
 
@@ -98,7 +100,9 @@ const ImmersivePlayer: React.FC<ImmersivePlayerProps> = ({
     onNavigateHome,
     onAddToPlaylist,
     visualizerMode,
-    onToggleVisualizerMode
+    onToggleVisualizerMode,
+    isLiked,
+    onToggleLike
 }) => {
     // Local UI State for Mobile Gestures
     const [activePanel, setActivePanel] = useState<"controls" | "lyrics">("controls");
@@ -214,6 +218,8 @@ const ImmersivePlayer: React.FC<ImmersivePlayerProps> = ({
                     onAddToPlaylist={() => currentSong && onAddToPlaylist([currentSong])}
                     visualizerMode={visualizerMode}
                     onToggleVisualizerMode={onToggleVisualizerMode}
+                    isLiked={isLiked}
+                    onToggleLike={onToggleLike}
                 />
 
                 <PlaylistPanel
