@@ -328,6 +328,7 @@ const App: React.FC = () => {
           onImport={handleImportUrl}
           onRemove={playlist.removeSongs}
           accentColor={accentColor}
+          onAddFiles={handleFileChange}
         />
       </div>
     </div>

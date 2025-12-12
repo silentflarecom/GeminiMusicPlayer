@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTransition, animated } from '@react-spring/web';
 import { Song } from '../types';
-import { CheckIcon, PlusIcon, QueueIcon, TrashIcon, SelectAllIcon } from './Icons';
+import { CheckIcon, PlusIcon, QueueIcon, TrashIcon, SelectAllIcon, CloudDownloadIcon } from './Icons';
 import { useKeyboardScope } from '../hooks/useKeyboardScope';
 import ImportMusicDialog from './ImportMusicDialog';
 import SmartImage from './SmartImage';
@@ -42,6 +41,7 @@ interface PlaylistPanelProps {
     onImport: (url: string) => Promise<boolean>;
     onRemove: (ids: string[]) => void;
     accentColor: string;
+    onAddFiles?: (files: FileList) => void;
 }
 
 const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
@@ -52,9 +52,18 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     onPlay,
     onImport,
     onRemove,
-    accentColor
+    accentColor,
+    onAddFiles
 }) => {
-    const [isAdding, setIsAdding] = useState(false);
+    // State to toggle the add options menu
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    
+    // State to control the existing "Import via URL" dialog
+    const [isImportingUrl, setIsImportingUrl] = useState(false);
+    
+    // To reference the file input
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const [visible, setVisible] = useState(false);
 
     const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +80,18 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     // ESC key support using keyboard scope
     useKeyboardScope(
         (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && !isAdding) {
+            if (e.key === 'Escape') {
+                if (showAddMenu) {
+                    e.preventDefault();
+                    setShowAddMenu(false);
+                    return true;
+                }
+                if (isImportingUrl) {
+                     // Let the dialog handle its own close, or handle it here if needed
+                     // But usually dialogs have their own escape handlers.
+                     // Assuming ImportMusicDialog handles it.
+                     return false; 
+                }
                 e.preventDefault();
                 onClose();
                 return true; // Claim the event
@@ -91,6 +111,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         onRest: () => {
             if (!isOpen) {
                 setIsEditing(false);
+                setShowAddMenu(false);
                 setSelectedIds(new Set());
             }
         }
@@ -116,7 +137,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     // Close on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (isOpen && !isAdding && panelRef.current && !panelRef.current.contains(event.target as Node)) {
+            if (isOpen && !isImportingUrl && panelRef.current && !panelRef.current.contains(event.target as Node)) {
                 onClose();
             }
         };
@@ -127,16 +148,39 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isOpen, onClose, isAdding]);
+    }, [isOpen, onClose, isImportingUrl]);
 
-    const handleImport = async (url: string) => {
+    const handleImportUrl = async (url: string) => {
         const success = await onImport(url);
         if (success) {
-            setIsAdding(false);
+            setIsImportingUrl(false);
         }
         return success;
     };
 
+    const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            // We use the existing logic in App.tsx -> usePlaylist which listens to a file input
+            // But here we need to manually trigger the addLocalFiles logic.
+            // Since onImport only takes a URL string, we need a new prop or 
+            // hack it by triggering the main input in TopBar? 
+            // Better: Dispatch a custom event or reuse the logic if accessible.
+            // Wait, TopBar has `onFilesSelected` passed from App.
+            // PlaylistPanel only has `onImport` (string).
+            // We need to pass `onFilesSelected` to PlaylistPanel or similar.
+            
+            // To avoid changing the interface too much, let's see if we can get `addLocalFiles` passed down.
+            // Since I cannot change App.tsx easily without context, I will assume I can modify App.tsx 
+            // to pass the handler or use a global event.
+            // Actually, I should probably check App.tsx to see if I can pass `handleFileChange` down to PlaylistPanel.
+        }
+    };
+    
+    // NOTE: In the previous turn I just read PlaylistPanel.tsx. I need to make sure I update App.tsx to pass the handler.
+    // However, I can't do that in this single write_file action.
+    // I will write this file assuming a new prop `onAddFiles` exists, and then update App.tsx in the next step.
+    
     const toggleSelection = (id: string) => {
         const newSet = new Set(selectedIds);
         if (newSet.has(id)) {
@@ -217,7 +261,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                             <span className="text-white/40 text-xs font-medium mt-1">{queue.length} Songs</span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 relative">
                             {isEditing ? (
                                 <>
                                     <button
@@ -247,12 +291,46 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                             ) : (
                                 <>
                                     <button
-                                        onClick={() => setIsAdding(true)}
-                                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all text-white/50 hover:text-white hover:bg-white/10"
-                                        title="Add from URL"
+                                        onClick={() => setShowAddMenu(!showAddMenu)}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showAddMenu ? 'text-white bg-white/20' : 'text-white/50 hover:text-white hover:bg-white/10'}`}
+                                        title="Add Music"
                                     >
                                         <PlusIcon className="w-5 h-5" />
                                     </button>
+                                    
+                                    {/* Add Options Menu */}
+                                    {showAddMenu && (
+                                        <div className="absolute top-10 right-0 w-48 bg-[#1c1c1e] border border-white/10 rounded-xl shadow-xl overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                                            <button
+                                                onClick={() => {
+                                                    setShowAddMenu(false);
+                                                    setIsImportingUrl(true);
+                                                }}
+                                                className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/10 flex items-center gap-3 transition-colors"
+                                            >
+                                                <CloudDownloadIcon className="w-4 h-4 text-blue-400" />
+                                                <span>From URL</span>
+                                            </button>
+                                            <div className="h-[1px] bg-white/5 mx-2"></div>
+                                            <button
+                                                onClick={() => {
+                                                    setShowAddMenu(false);
+                                                    // Trigger hidden file input
+                                                    // We need to use a DOM id or ref. Since ref is inside this component, we can use it.
+                                                    // But we need to make sure the input exists.
+                                                    const input = document.getElementById('playlist-folder-input');
+                                                    if (input) input.click();
+                                                }}
+                                                className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/10 flex items-center gap-3 transition-colors"
+                                            >
+                                                <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+                                                </svg>
+                                                <span>Local Folder</span>
+                                            </button>
+                                        </div>
+                                    )}
+
                                     <button
                                         onClick={() => setIsEditing(true)}
                                         className="w-8 h-8 rounded-full flex items-center justify-center transition-all text-white/50 hover:text-white hover:bg-white/10"
@@ -363,11 +441,26 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                 </animated.div>
             ))}
 
+            {/* Hidden Input for Folder Selection */}
+            <input
+                type="file"
+                id="playlist-folder-input"
+                className="hidden"
+                multiple
+                {...({ webkitdirectory: "", directory: "" } as any)}
+                onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0 && onAddFiles) {
+                        onAddFiles(e.target.files);
+                    }
+                    e.target.value = ""; // Reset value to allow re-selection
+                }}
+            />
+
             {/* Import Music Dialog */}
             <ImportMusicDialog
-                isOpen={isAdding}
-                onClose={() => setIsAdding(false)}
-                onImport={handleImport}
+                isOpen={isImportingUrl}
+                onClose={() => setIsImportingUrl(false)}
+                onImport={handleImportUrl}
             />
         </>
     );
