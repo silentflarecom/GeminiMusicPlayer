@@ -483,6 +483,7 @@ const App: React.FC = () => {
                     currentSong={currentSong}
                     onSettingsClick={() => setShowAppSettings(true)}
                     onThemeClick={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
+                    onFilesSelected={handleFileChange}
                   />
                 </div>
               </div>

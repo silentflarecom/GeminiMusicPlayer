@@ -1,5 +1,5 @@
 import { PlayIcon, QueueIcon, SettingsIcon, UserIcon, LikeIcon as HeartIcon, ClockIcon, CloudDownloadIcon } from './Icons';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTransition, animated } from '@react-spring/web';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useLibrary } from '../hooks/useLibrary';
@@ -17,6 +17,7 @@ interface HomeViewProps {
     greeting?: string;
     onSettingsClick: () => void;
     onThemeClick: () => void;
+    onFilesSelected?: (files: FileList) => void;
 }
 import { SparklesIcon } from './Icons';
 
@@ -29,7 +30,8 @@ const HomeView: React.FC<HomeViewProps> = ({
     currentSong,
     greeting,
     onSettingsClick,
-    onThemeClick
+    onThemeClick,
+    onFilesSelected
 }) => {
     const { profile, updateProfile } = useUserProfile();
     const { playlists, createPlaylist, deletePlaylist } = useLibrary();
@@ -59,10 +61,13 @@ const HomeView: React.FC<HomeViewProps> = ({
     // Dynamic Counts
     const [likedCount, setLikedCount] = useState(0);
     const [recentCount, setRecentCount] = useState(0);
+    const [localCount, setLocalCount] = useState(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setLikedCount(userDataService.getLikedSongs().length);
         setRecentCount(userDataService.getRecentSongs().length);
+        setLocalCount(userDataService.getLocalFiles().length);
 
         // Listen for storage events to update counts across tabs or components?
         // Or just re-fetch when HomeView mounts/focuses.
@@ -86,15 +91,8 @@ const HomeView: React.FC<HomeViewProps> = ({
             // TODO: Ensure uniqueness or playback issues? Queue handles it.
         } else if (type === 'local') {
             title = "Local Files";
-            // We don't have a specific store for all local files other than what's in Library playlists or current queue.
-            // But usually apps show all "Imported" files.
-            // Since we don't persist "All Local Files" explicitly in a single list, 
-            // maybe we can aggregate from all playlists that are "Local" or just show a message or empty.
-            // For now, let's show an empty list or try to prompt import logic.
-            // Actually, we can just filter all songs in all playlists? Or just use a placeholder.
-            // Let's create a placeholder for now as "Local Files" usually implies a file browser which we implemented via "Import Folder".
+            songs = userDataService.getLocalFiles();
             id = "local_files_virtual";
-            songs = []; // TODO: Aggregate from DB
         }
 
         const virtualPlaylist: Playlist = {
@@ -106,8 +104,9 @@ const HomeView: React.FC<HomeViewProps> = ({
         };
 
         if (type === 'local' && songs.length === 0) {
-            // Maybe trigger import instead?
-            // For now just open empty playlist
+            // Trigger file input to import local files
+            fileInputRef.current?.click();
+            return;
         }
 
         setSelectedPlaylist(virtualPlaylist);
@@ -193,7 +192,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                     <div className="relative z-10 flex flex-col h-full justify-end">
                         <h3 className="text-2xl font-bold text-white mb-1">Local Files</h3>
-                        <p className="text-white/60">Imported</p>
+                        <p className="text-white/60">{localCount} tracks</p>
                     </div>
                 </div>
             </div>
@@ -322,6 +321,21 @@ const HomeView: React.FC<HomeViewProps> = ({
                 onCreate={(name) => {
                     createPlaylist(name);
                     setShowCreateDialog(false);
+                }}
+            />
+
+            {/* Hidden File Input for Local Files Import */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*,.lrc,.txt"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0 && onFilesSelected) {
+                        onFilesSelected(e.target.files);
+                    }
+                    e.target.value = ''; // Reset for re-selection
                 }}
             />
         </div>

@@ -12,6 +12,7 @@ import {
   getNeteaseAudioUrl,
 } from "../services/lyricsService";
 import { audioResourceCache } from "../services/cache";
+import { userDataService } from "../services/userDataService";
 
 // Levenshtein distance for fuzzy matching
 const levenshteinDistance = (str1: string, str2: string): number => {
@@ -207,7 +208,7 @@ export const usePlaylist = () => {
           console.warn("Local metadata extraction failed", err);
         }
 
-        newSongs.push({
+        const song: Song = {
           id: `local-${Date.now()}-${i}`,
           title,
           artist,
@@ -216,7 +217,16 @@ export const usePlaylist = () => {
           lyrics,
           colors: colors && colors.length > 0 ? colors : undefined,
           needsLyricsMatch: lyrics.length === 0, // Flag for cloud matching
-        });
+        };
+
+        newSongs.push(song);
+
+        // Track locally imported files
+        try {
+          userDataService.addLocalFile(song);
+        } catch (err) {
+          console.warn("Failed to track local file", err);
+        }
       }
 
       appendSongs(newSongs);
