@@ -246,7 +246,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                     className={`
                         absolute bottom-24 -right-8 z-50
                         w-[340px] 
-                        bg-black/10 backdrop-blur-[100px] saturate-150
+                        bg-[#0a0a0c]/60 backdrop-blur-[40px] saturate-150
                         rounded-[32px] 
                         shadow-[0_20px_50px_rgba(0,0,0,0.3)] 
                         border border-white/5

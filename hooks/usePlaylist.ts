@@ -170,6 +170,9 @@ export const usePlaylist = () => {
             // Try exact match first
             let matchedLyricsFile = lyricsMap.get(songTitle);
 
+            // Add to history? No, this is importing.
+            // History logic should be in usePlayer or App.
+
             // If no exact match, try fuzzy matching
             if (!matchedLyricsFile && lyricsMap.size > 0) {
               let bestMatch: { file: File; score: number } | null = null;
@@ -216,6 +219,7 @@ export const usePlaylist = () => {
           lyrics,
           colors: colors && colors.length > 0 ? colors : undefined,
           needsLyricsMatch: lyrics.length === 0, // Flag for cloud matching
+          fileBlob: file // Persist the blob
         });
       }
 

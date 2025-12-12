@@ -10,6 +10,7 @@ import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import TopBar from "./components/TopBar";
 import SearchModal from "./components/SearchModal";
 import { usePlaylist } from "./hooks/usePlaylist";
+import { useLibrary } from "./hooks/useLibrary";
 import { usePlayer } from "./hooks/usePlayer";
 import { keyboardRegistry } from "./services/keyboardRegistry";
 import MediaSessionController from "./components/MediaSessionController";
@@ -18,12 +19,14 @@ import HomeView from "./components/HomeView";
 import ImmersivePlayer from "./components/ImmersivePlayer";
 import AddToPlaylistDialog from "./components/AddToPlaylistDialog";
 import SettingsDialog from "./components/SettingsDialog";
+import { userDataService } from "./services/userDataService";
 
 type ViewState = "home" | "player";
 
 const App: React.FC = () => {
   const { toast } = useToast();
   const playlist = usePlaylist();
+  const library = useLibrary(); // Init library hook
   const player = usePlayer({
     queue: playlist.queue,
     originalQueue: playlist.originalQueue,
@@ -84,6 +87,28 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>("home");
   const [visualizerMode, setVisualizerMode] = useState<'fluid' | 'gradient'>('fluid');
 
+  const [isCurrentSongLiked, setIsCurrentSongLiked] = useState(false);
+
+  useEffect(() => {
+    if (currentSong) {
+      setIsCurrentSongLiked(userDataService.isLiked(currentSong.id));
+    } else {
+      setIsCurrentSongLiked(false);
+    }
+  }, [currentSong?.id]);
+
+  const toggleCurrentLike = () => {
+    if (currentSong) {
+      const isLiked = userDataService.toggleLike(currentSong);
+      setIsCurrentSongLiked(isLiked);
+      if (isLiked) {
+        toast.success("Added to Liked Songs");
+      } else {
+        toast.success("Removed from Liked Songs");
+      }
+    }
+  };
+
   // Auto-switch to player when a song starts playing from a non-playing state?
   // Or just let user control it. 
   // Let's switch to player when user plays a song from Home.
@@ -133,6 +158,9 @@ const App: React.FC = () => {
       const wasEmpty = playlist.queue.length === 0;
       const addedSongs = await playlist.addLocalFiles(files);
       if (addedSongs.length > 0) {
+        // Persist local files
+        addedSongs.forEach(song => library.addLocalSong(song));
+
         setTimeout(() => {
           handlePlaylistAddition(addedSongs, wasEmpty);
         }, 0);
@@ -210,6 +238,9 @@ const App: React.FC = () => {
     const wasEmpty = playlist.queue.length === 0;
     const addedSongs = await playlist.addLocalFiles(files);
     if (addedSongs.length > 0) {
+      // Persist local files
+      addedSongs.forEach(song => library.addLocalSong(song));
+
       setTimeout(() => {
         handlePlaylistAddition(addedSongs, wasEmpty);
       }, 0);
@@ -526,6 +557,8 @@ const App: React.FC = () => {
                 onImportUrl={handleImportUrl}
                 onNavigateHome={navigateToHome}
                 onAddToPlaylist={handleOpenAddToPlaylist}
+                isLiked={isCurrentSongLiked}
+                onToggleLike={toggleCurrentLike}
               />
             )}
           </animated.div>

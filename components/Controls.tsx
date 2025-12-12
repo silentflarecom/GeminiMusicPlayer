@@ -21,6 +21,7 @@ import {
   QueueIcon,
   PlusIcon,
   SparklesIcon,
+  LikeIcon,
 } from "./Icons";
 import { PlayMode } from "../types";
 
@@ -55,6 +56,8 @@ interface ControlsProps {
   bufferProgress: number;
   visualizerMode?: 'fluid' | 'gradient';
   onToggleVisualizerMode?: () => void;
+  isLiked?: boolean;
+  onToggleLike?: () => void;
 }
 
 
@@ -88,7 +91,9 @@ const Controls: React.FC<ControlsProps> = ({
   onAddToPlaylist,
   isBuffering,
   visualizerMode,
-  onToggleVisualizerMode
+  onToggleVisualizerMode,
+  isLiked = false,
+  onToggleLike
 }) => {
   const volumeContainerRef = useRef<HTMLDivElement>(null);
   const settingsContainerRef = useRef<HTMLDivElement>(null);
@@ -519,7 +524,7 @@ const Controls: React.FC<ControlsProps> = ({
             <NextIcon className="w-9 h-9" />
           </button>
 
-          {/* 6. Settings (Replaces Like) */}
+          {/* 6. Settings */}
           <div className="relative" ref={settingsContainerRef}>
             <button
               onClick={() => setShowSettingsPopup(!showSettingsPopup)}
@@ -543,6 +548,15 @@ const Controls: React.FC<ControlsProps> = ({
               ) : null
             )}
           </div>
+
+          {/* 7. Like Button */}
+          <button
+            onClick={onToggleLike}
+            className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isLiked ? "text-red-500 hover:text-red-400" : "text-white/40 hover:text-white"}`}
+            title={isLiked ? "Unlike" : "Like"}
+          >
+            <LikeIcon className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+          </button>
 
           {/* 7. Visualizer Toggle (New) */}
           {onToggleVisualizerMode && (

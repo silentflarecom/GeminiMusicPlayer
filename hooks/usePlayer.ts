@@ -14,6 +14,7 @@ import {
   searchAndMatchLyrics,
 } from "../services/lyricsService";
 import { audioResourceCache } from "../services/cache";
+import { userDataService } from "../services/userDataService";
 import { useToast } from "./useToast";
 
 type MatchStatus = "idle" | "matching" | "success" | "failed";
@@ -897,6 +898,15 @@ export const usePlayer = ({
       releaseObjectUrl();
     };
   }, [currentSong?.fileUrl]);
+
+  // History tracking
+  useEffect(() => {
+    if (currentSong) {
+      // Avoid adding on every render, only when song ID changes
+      // But useEffect with currentSong.id as dependency handles that.
+      userDataService.addToHistory(currentSong);
+    }
+  }, [currentSong?.id]); // Only when ID changes
 
   return {
     audioRef,
