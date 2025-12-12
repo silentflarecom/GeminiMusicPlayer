@@ -17,6 +17,7 @@ import { CloudDownloadIcon } from "./components/Icons";
 import HomeView from "./components/HomeView";
 import ImmersivePlayer from "./components/ImmersivePlayer";
 import AddToPlaylistDialog from "./components/AddToPlaylistDialog";
+import SettingsDialog from "./components/SettingsDialog";
 
 type ViewState = "home" | "player";
 
@@ -62,7 +63,8 @@ const App: React.FC = () => {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showVolumePopup, setShowVolumePopup] = useState(false);
-  const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+  const [showPlayerSettingsPopup, setShowPlayerSettingsPopup] = useState(false); // Renamed internally for clarity, typically corresponds to showSettingsPopup in existing code
+  const [showAppSettings, setShowAppSettings] = useState(false); // New global settings
   const [showAddToPlaylistDialog, setShowAddToPlaylistDialog] = useState(false);
   const [songsToAdd, setSongsToAdd] = useState<Song[]>([]);
   const [volume, setVolume] = useState(1);
@@ -346,8 +348,8 @@ const App: React.FC = () => {
           bufferProgress={bufferProgress}
           showVolumePopup={showVolumePopup}
           setShowVolumePopup={setShowVolumePopup}
-          showSettingsPopup={showSettingsPopup}
-          setShowSettingsPopup={setShowSettingsPopup}
+          showSettingsPopup={showPlayerSettingsPopup}
+          setShowSettingsPopup={setShowPlayerSettingsPopup}
           onAddToPlaylist={() => currentSong && handleOpenAddToPlaylist([currentSong])}
         />
 
@@ -431,7 +433,7 @@ const App: React.FC = () => {
         speed={player.speed}
         onSpeedChange={player.setSpeed}
         onToggleVolumeDialog={() => setShowVolumePopup((prev) => !prev)}
-        onToggleSpeedDialog={() => setShowSettingsPopup((prev) => !prev)}
+        onToggleSpeedDialog={() => setShowPlayerSettingsPopup((prev) => !prev)}
       />
 
       <MediaSessionController
@@ -479,6 +481,8 @@ const App: React.FC = () => {
                     }}
                     isPlaying={playState === PlayState.PLAYING}
                     currentSong={currentSong}
+                    onSettingsClick={() => setShowAppSettings(true)}
+                    onThemeClick={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
                   />
                 </div>
               </div>
@@ -515,8 +519,8 @@ const App: React.FC = () => {
                 onToggleVisualizerMode={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
                 showVolumePopup={showVolumePopup}
                 setShowVolumePopup={setShowVolumePopup}
-                showSettingsPopup={showSettingsPopup}
-                setShowSettingsPopup={setShowSettingsPopup}
+                showSettingsPopup={showPlayerSettingsPopup}
+                setShowSettingsPopup={setShowPlayerSettingsPopup}
                 onSearchClick={() => setShowSearch(true)}
                 onFilesSelected={handleFileChange}
                 onImportUrl={handleImportUrl}
@@ -538,6 +542,27 @@ const App: React.FC = () => {
           // We could show a toast here
           toast.success("Added to playlist");
         }}
+      />
+
+      <SearchModal
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        queue={playlist.queue}
+        onPlayQueueIndex={(index) => playIndex(index)}
+        onImportAndPlay={handleImportAndPlay}
+        onAddToQueue={handleAddToQueue}
+        currentSong={currentSong}
+        isPlaying={playState === PlayState.PLAYING}
+        accentColor={accentColor}
+      />
+
+      <SettingsDialog
+        isOpen={showAppSettings}
+        onClose={() => setShowAppSettings(false)}
+        visualizerMode={visualizerMode}
+        onToggleVisualizerMode={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
+        volume={volume}
+        onVolumeChange={setVolume}
       />
 
 

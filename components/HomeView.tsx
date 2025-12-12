@@ -16,7 +16,10 @@ interface HomeViewProps {
     isPlaying: boolean;
     currentSong: Song | null;
     greeting?: string;
+    onSettingsClick: () => void;
+    onThemeClick: () => void;
 }
+import { SparklesIcon } from './Icons';
 
 import PlaylistDetail from './PlaylistDetail';
 
@@ -25,7 +28,9 @@ const HomeView: React.FC<HomeViewProps> = ({
     onPlayPlaylist,
     isPlaying,
     currentSong,
-    greeting
+    greeting,
+    onSettingsClick,
+    onThemeClick
 }) => {
     const { profile, updateProfile } = useUserProfile();
     const { playlists, createPlaylist, deletePlaylist } = useLibrary();
@@ -123,7 +128,18 @@ const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 <div className="flex gap-4">
-                    <button className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/20 hover:scale-105 transition-all">
+                    <button
+                        onClick={onThemeClick}
+                        className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/20 hover:scale-105 transition-all"
+                        title="Switch Theme / Visualizer"
+                    >
+                        <SparklesIcon className="w-6 h-6" />
+                    </button>
+                    <button
+                        onClick={onSettingsClick}
+                        className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/20 hover:scale-105 transition-all"
+                        title="Settings"
+                    >
                         <SettingsIcon className="w-6 h-6" />
                     </button>
                     <div

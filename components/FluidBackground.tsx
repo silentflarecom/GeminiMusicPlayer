@@ -29,6 +29,7 @@ interface FluidBackgroundProps {
   isPlaying?: boolean;
   coverUrl?: string;
   isMobileLayout?: boolean;
+  visualizerMode?: 'fluid' | 'gradient';
 }
 
 const FluidBackground: React.FC<FluidBackgroundProps> = ({
@@ -36,6 +37,7 @@ const FluidBackground: React.FC<FluidBackgroundProps> = ({
   isPlaying = true,
   coverUrl,
   isMobileLayout = false,
+  visualizerMode
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<UIBackgroundRender | WebWorkerBackgroundRender | null>(null);
@@ -191,8 +193,17 @@ const FluidBackground: React.FC<FluidBackgroundProps> = ({
       return;
     }
 
+    // Determine mode based on visualizerMode prop OR fallback to isMobileLayout logic
+    const isGradientMode = visualizerMode === 'gradient';
+    // If not gradient, we assume fluid.
+
+    // Logic: 
+    // If explicit gradient -> renderGradientFrame
+    // If explicit fluid -> try worker (if desktop) or mobile frame
+    // If undefined -> standard behavior (isMobileLayout ? mobile : worker/gradient)
+
     const shouldUseWorker =
-      !isMobileLayout && WebWorkerBackgroundRender.isSupported(canvas);
+      !isMobileLayout && !isGradientMode && WebWorkerBackgroundRender.isSupported(canvas);
 
     if (shouldUseWorker && rendererRef.current instanceof WebWorkerBackgroundRender) {
       return;
@@ -203,19 +214,49 @@ const FluidBackground: React.FC<FluidBackgroundProps> = ({
       rendererRef.current = null;
     }
 
-    if (shouldUseWorker) {
+    // Check if we can use the canvas
+    try {
+      // Setting width/height throws if transferred. Use this to detect invalid state from double-mount.
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      const workerRenderer = new WebWorkerBackgroundRender(canvas);
-      workerRenderer.start(colorsRef.current ?? []);
-      rendererRef.current = workerRenderer;
-      return () => {
-        workerRenderer.stop();
-        rendererRef.current = null;
-      };
+    } catch (e) {
+      // Canvas is broken/transferred. Force remount.
+      setCanvasInstanceKey(k => k + 1);
+      return; // Exit and wait for new canvas
     }
 
-    const renderCallback = isMobileLayout ? renderMobileFrame : renderGradientFrame;
+    if (shouldUseWorker) {
+      if (!canvas.dataset.offscreenTransferred) {
+        try {
+          const workerRenderer = new WebWorkerBackgroundRender(canvas);
+          workerRenderer.start(colorsRef.current ?? []);
+          rendererRef.current = workerRenderer;
+          // Mark as transferred so we don't try again or use UI render
+          canvas.dataset.offscreenTransferred = "true";
+
+          return () => {
+            workerRenderer.stop();
+            rendererRef.current = null;
+          };
+        } catch (e) {
+          console.error("FluidBackground: Failed to start worker", e);
+          setCanvasInstanceKey(k => k + 1);
+          return;
+        }
+      } else {
+        // Already marked (should happen via catch block usually, but strict mode might be weird)
+        setCanvasInstanceKey(k => k + 1);
+        return;
+      }
+    }
+
+    // Fallback to UI renderer (Gradient or Mobile Fluid Layers)
+    // If mode is 'fluid' but worker not supported/used (e.g. mobile), use renderMobileFrame
+    // If mode is 'gradient', use renderGradientFrame
+    const renderCallback = (isGradientMode)
+      ? renderGradientFrame
+      : renderMobileFrame;
+
     const uiRenderer = new UIBackgroundRender(canvas, renderCallback);
     uiRenderer.resize(window.innerWidth, window.innerHeight);
     uiRenderer.setPaused(!isPlaying);
@@ -226,7 +267,7 @@ const FluidBackground: React.FC<FluidBackgroundProps> = ({
       uiRenderer.stop();
       rendererRef.current = null;
     };
-  }, [isMobileLayout, renderGradientFrame, renderMobileFrame, canvasInstanceKey]);
+  }, [isMobileLayout, renderGradientFrame, renderMobileFrame, canvasInstanceKey, visualizerMode]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -238,7 +279,7 @@ const FluidBackground: React.FC<FluidBackgroundProps> = ({
     }
   }, [colors, isPlaying]);
 
-  const canvasKey = `${isMobileLayout ? "mobile" : "desktop"}-${canvasInstanceKey}`;
+  const canvasKey = `${isMobileLayout ? "mobile" : "desktop"}-${visualizerMode || 'fluid'}-${canvasInstanceKey}`;
 
   return (
     <>

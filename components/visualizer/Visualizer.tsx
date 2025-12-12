@@ -77,6 +77,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ audioRef, isPlaying }) => {
         };
     }, [isPlaying, audioRef]);
 
+    const [canvasIdx, setCanvasIdx] = React.useState(0);
+
     // Effect 2: Worker Initialization
     useEffect(() => {
         if (!isPlaying) {
@@ -97,6 +99,23 @@ const Visualizer: React.FC<VisualizerProps> = ({ audioRef, isPlaying }) => {
             return;
         }
 
+        // Check if canvas is already transferred / unusable
+        // Note: 'transferControlToOffscreen' consumes the canvas.
+        // If we are in Strict Mode (double mount), the second mount sees the same canvas element,
+        // but it is already transferred. We must detect this and force a remount of the DOM node.
+
+        try {
+            // Provide a way to check if we can touch the canvas
+            // Setting width will throw if it is transferred
+            const dpr = window.devicePixelRatio || 1;
+            canvasEl.width = 320 * dpr;
+            canvasEl.height = 32 * dpr;
+        } catch (e) {
+            // Canvas is likely transferred. Force a new one.
+            setCanvasIdx(i => i + 1);
+            return;
+        }
+
         const isOffscreenSupported = !!canvasEl.transferControlToOffscreen;
         if (!isOffscreenSupported) {
             console.warn("Visualizer: OffscreenCanvas not available, skipping worker");
@@ -108,10 +127,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ audioRef, isPlaying }) => {
                 type: 'module'
             });
             workerRef.current = worker;
-
-            const dpr = window.devicePixelRatio || 1;
-            canvasEl.width = 320 * dpr;
-            canvasEl.height = 32 * dpr;
 
             const offscreen = canvasEl.transferControlToOffscreen();
 
@@ -126,7 +141,7 @@ const Visualizer: React.FC<VisualizerProps> = ({ audioRef, isPlaying }) => {
                         gap: 2,
                         fftSize: 256,
                         smoothingTimeConstant: 0.5,
-                        dpr: dpr
+                        dpr: window.devicePixelRatio || 1
                     },
                     port: channel.port1
                 },
@@ -145,6 +160,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ audioRef, isPlaying }) => {
             sendPortToWorklet();
         } catch (e) {
             console.error("Visualizer: Failed to initialize worker", e);
+            // If checking width didn't fail but transfer did (rare race?), remount.
+            setCanvasIdx(i => i + 1);
         }
 
         return () => {
@@ -154,12 +171,13 @@ const Visualizer: React.FC<VisualizerProps> = ({ audioRef, isPlaying }) => {
                 workerRef.current = null;
             }
         };
-    }, [isPlaying]);
+    }, [isPlaying, canvasIdx]);
 
     if (!isPlaying) return <div className="h-8 w-full"></div>;
 
     return (
         <canvas
+            key={canvasIdx}
             ref={canvasRef}
             width={320}
             height={32}
