@@ -1,4 +1,4 @@
-import { fetchViaProxy } from "./utils";
+import { fetchViaProxy, calculateSimilarity } from "./utils";
 import { API_CONFIG } from "./config";
 
 const METADATA_KEYWORDS = [
@@ -252,6 +252,7 @@ export const searchAndMatchLyrics = async (
   artist: string,
 ): Promise<{ lrc: string; yrc?: string; tLrc?: string; metadata: string[] } | null> => {
   try {
+    // Increase limit to find better matches
     const songs = await searchNetEase(`${title} ${artist}`, { limit: 5 });
 
     if (songs.length === 0) {
@@ -259,8 +260,44 @@ export const searchAndMatchLyrics = async (
       return null;
     }
 
-    const songId = songs[0].id;
-    console.log(`Found Song ID: ${songId}`);
+    // Fuzzy Match: Find best match based on title/artist similarity
+    let bestMatch = songs[0];
+    let bestScore = -1;
+
+    const targetTitle = title.toLowerCase().trim();
+    const targetArtist = artist.toLowerCase().trim();
+
+    for (const song of songs) {
+      const songTitle = song.title.toLowerCase().trim();
+      const songArtist = song.artist.toLowerCase().trim();
+
+      // Simple keyword check first
+      if (songTitle === targetTitle && songArtist.includes(targetArtist)) {
+        bestScore = 2.0; // Perfect match
+        bestMatch = song;
+        break;
+      }
+
+      const titleSim = calculateSimilarity(targetTitle, songTitle);
+      const artistSim = calculateSimilarity(targetArtist, songArtist);
+
+      // Weighted score: Title is more important
+      const score = titleSim * 0.6 + artistSim * 0.4;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = song;
+      }
+    }
+
+    // If best score is too low, reject
+    if (bestScore < 0.4) {
+      console.warn(`No good match found for ${title} - ${artist} (Best score: ${bestScore})`);
+      return null;
+    }
+
+    const songId = bestMatch.id;
+    console.log(`Found Song ID: ${songId} (Score: ${bestScore.toFixed(2)})`);
 
     const lyricsResult = await fetchLyricsById(songId);
     return lyricsResult;
@@ -278,11 +315,27 @@ export const fetchLyricsById = async (
     const lyricUrl = `${API_CONFIG.NETEASE_BASE_URL}/lyric/new?id=${songId}`;
     const lyricData = await fetchViaProxy(lyricUrl);
 
+    // Check for "no lyric" flags (Pure Music / Instrumental)
+    if (lyricData.nolyric || lyricData.uncollected) {
+      return {
+        lrc: "[00:00.00] Instrumental",
+        metadata: ["纯音乐，请欣赏"],
+      };
+    }
+
     const rawYrc = lyricData.yrc?.lyric;
     const rawLrc = lyricData.lrc?.lyric;
     const tLrc = lyricData.tlyric?.lyric;
 
     if (!rawYrc && !rawLrc) return null;
+
+    // Double check content for "Pure Music" indicators in text
+    if (rawLrc && (rawLrc.includes("纯音乐，请欣赏") || rawLrc.includes("Pure Music"))) {
+      return {
+        lrc: "[00:00.00] Instrumental",
+        metadata: ["纯音乐，请欣赏"],
+      };
+    }
 
     const {
       clean: cleanLrc,
