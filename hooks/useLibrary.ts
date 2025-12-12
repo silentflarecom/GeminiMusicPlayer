@@ -5,6 +5,7 @@ import { libraryDB } from '../services/libraryService';
 
 export const useLibrary = () => {
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [localSongs, setLocalSongs] = useState<Song[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Initial Load
@@ -16,6 +17,9 @@ export const useLibrary = () => {
         try {
             const storedPlaylists = await libraryDB.getAllPlaylists();
             setPlaylists(storedPlaylists.sort((a, b) => b.createdAt - a.createdAt));
+
+            const storedSongs = await libraryDB.getAllLocalSongs();
+            setLocalSongs(storedSongs.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)));
         } catch (err) {
             console.error("Failed to load library", err);
         } finally {
@@ -67,12 +71,25 @@ export const useLibrary = () => {
         setPlaylists(prev => prev.map(p => p.id === playlistId ? updatedPlaylist : p));
     };
 
+    const addLocalSong = async (song: Song) => {
+        // Add timestamp if missing
+        const songToSave = { ...song, addedAt: Date.now() };
+        await libraryDB.saveSong(songToSave);
+        setLocalSongs(prev => {
+            const exists = prev.find(p => p.id === song.id);
+            if (exists) return prev;
+            return [songToSave, ...prev];
+        });
+    };
+
     return {
         playlists,
         isLoading,
         createPlaylist,
         deletePlaylist,
         addSongToPlaylist,
-        refresh: loadLibrary
+        refresh: loadLibrary,
+        localSongs,
+        addLocalSong
     };
 };
