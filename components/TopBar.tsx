@@ -6,12 +6,14 @@ interface TopBarProps {
   onFilesSelected: (files: FileList) => void;
   onSearchClick: () => void;
   disabled?: boolean;
+  onLogoClick?: () => void;
 }
 
 const TopBar: React.FC<TopBarProps> = ({
   onFilesSelected,
   onSearchClick,
   disabled,
+  onLogoClick,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -107,7 +109,10 @@ const TopBar: React.FC<TopBarProps> = ({
       {/* Content (Animate in) */}
       <div className="relative z-10 w-full h-full px-6 flex justify-between items-center pointer-events-auto">
         {/* Logo / Title */}
-        <div className={`flex items-center gap-3 ${baseTransitionClasses} ${mobileActiveClasses} ${hoverSupportClasses}`}>
+        <div
+          onClick={onLogoClick}
+          className={`flex items-center gap-3 ${baseTransitionClasses} ${mobileActiveClasses} ${hoverSupportClasses} ${onLogoClick ? "cursor-pointer active:scale-95 transition-transform" : ""}`}
+        >
           <div className="w-9 h-9 rounded-[10px] shadow-lg shadow-purple-500/20 overflow-hidden">
             <AuraLogo className="w-full h-full" />
           </div>

@@ -19,6 +19,7 @@ import {
   NextIcon,
   SettingsIcon,
   QueueIcon,
+  PlusIcon,
 } from "./Icons";
 import { PlayMode } from "../types";
 
@@ -48,9 +49,11 @@ interface ControlsProps {
   setShowVolumePopup: (show: boolean) => void;
   showSettingsPopup: boolean;
   setShowSettingsPopup: (show: boolean) => void;
+  onAddToPlaylist: () => void;
   isBuffering: boolean;
   bufferProgress: number;
 }
+
 
 const Controls: React.FC<ControlsProps> = ({
   isPlaying,
@@ -78,8 +81,9 @@ const Controls: React.FC<ControlsProps> = ({
   setShowVolumePopup,
   showSettingsPopup,
   setShowSettingsPopup,
-  isBuffering,
   bufferProgress,
+  onAddToPlaylist,
+  isBuffering,
 }) => {
   const volumeContainerRef = useRef<HTMLDivElement>(null);
   const settingsContainerRef = useRef<HTMLDivElement>(null);
@@ -434,6 +438,15 @@ const Controls: React.FC<ControlsProps> = ({
             title="Playback Mode"
           >
             {getModeIcon()}
+          </button>
+
+          {/* Add to Playlist (New Button) */}
+          <button
+            onClick={onAddToPlaylist}
+            className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+            title="Add to Playlist"
+          >
+            <PlusIcon className="w-5 h-5" />
           </button>
 
           {/* 2. Volume */}

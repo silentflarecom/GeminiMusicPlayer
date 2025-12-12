@@ -39,3 +39,18 @@ export enum PlayMode {
   LOOP_ONE,
   SHUFFLE
 }
+
+export interface UserProfile {
+  username: string;
+  avatarUrl?: string;
+  bio?: string;
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description?: string;
+  coverUrl?: string;
+  createdAt: number;
+  songs: Song[];
+}

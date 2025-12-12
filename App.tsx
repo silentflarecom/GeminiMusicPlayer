@@ -13,6 +13,11 @@ import { usePlayer } from "./hooks/usePlayer";
 import { keyboardRegistry } from "./services/keyboardRegistry";
 import MediaSessionController from "./components/MediaSessionController";
 import { CloudDownloadIcon } from "./components/Icons";
+import HomeView from "./components/HomeView";
+import ImmersivePlayer from "./components/ImmersivePlayer";
+import AddToPlaylistDialog from "./components/AddToPlaylistDialog";
+
+type ViewState = "home" | "player";
 
 const App: React.FC = () => {
   const { toast } = useToast();
@@ -57,6 +62,8 @@ const App: React.FC = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+  const [showAddToPlaylistDialog, setShowAddToPlaylistDialog] = useState(false);
+  const [songsToAdd, setSongsToAdd] = useState<Song[]>([]);
   const [volume, setVolume] = useState(1);
 
   const [isMobileLayout, setIsMobileLayout] = useState(false);
@@ -66,10 +73,27 @@ const App: React.FC = () => {
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  
-  // Global Drag & Drop State
+
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragCounter = useRef(0);
+
+  // View Routing State
+  const [currentView, setCurrentView] = useState<ViewState>("home");
+
+  // Auto-switch to player when a song starts playing from a non-playing state?
+  // Or just let user control it. 
+  // Let's switch to player when user plays a song from Home.
+
+  // Effect to sync view if needed, but manual control is better.
+
+  const navigateToPlayer = () => setCurrentView("player");
+  const navigateToHome = () => setCurrentView("home");
+
+  const handlePlayFromHome = (index: number) => {
+    playIndex(index);
+    navigateToPlayer();
+  };
+
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -230,6 +254,12 @@ const App: React.FC = () => {
     playlist.setOriginalQueue((prev) => [...prev, song]);
   };
 
+  const handleOpenAddToPlaylist = (songs: Song[]) => {
+    setSongsToAdd(songs);
+    setShowAddToPlaylistDialog(true);
+  };
+
+
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (!isMobileLayout) return;
     setTouchStartX(event.touches[0]?.clientX ?? null);
@@ -316,6 +346,7 @@ const App: React.FC = () => {
           setShowVolumePopup={setShowVolumePopup}
           showSettingsPopup={showSettingsPopup}
           setShowSettingsPopup={setShowSettingsPopup}
+          onAddToPlaylist={() => currentSong && handleOpenAddToPlaylist([currentSong])}
         />
 
         {/* Floating Playlist Panel */}
@@ -329,6 +360,7 @@ const App: React.FC = () => {
           onRemove={playlist.removeSongs}
           accentColor={accentColor}
           onAddFiles={handleFileChange}
+          onAddToPlaylist={handleOpenAddToPlaylist}
         />
       </div>
     </div>
@@ -412,79 +444,97 @@ const App: React.FC = () => {
         onSeek={handleSeek}
       />
 
-      {/* Top Bar */}
-      <TopBar
-        onFilesSelected={handleFileChange}
-        onSearchClick={() => setShowSearch(true)}
-      />
-
-      {/* Search Modal - Always rendered to preserve state, visibility handled internally */}
-      <SearchModal
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        queue={playlist.queue}
-        onPlayQueueIndex={playIndex}
-        onImportAndPlay={handleImportAndPlay}
-        onAddToQueue={handleAddToQueue}
-        currentSong={currentSong}
-        isPlaying={playState === PlayState.PLAYING}
-        accentColor={accentColor}
-      />
-
-      {/* Main Content Split */}
-      {isMobileLayout ? (
-        <div className="flex-1 relative w-full h-full">
-          <div
-            ref={mobileViewportRef}
-            className="w-full h-full overflow-hidden"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchCancel}
-          >
-            <div
-              className={`flex h-full ${isDragging ? "transition-none" : "transition-transform duration-300"}`}
-              style={{
-                width: `${effectivePaneWidth * 2}px`,
-                transform: `translateX(${mobileTranslate}px)`,
-              }}
-            >
-              <div
-                className="flex-none h-full"
-                style={{ width: effectivePaneWidth }}
-              >
-                {controlsSection}
-              </div>
-              <div
-                className="flex-none h-full"
-                style={{ width: effectivePaneWidth }}
-              >
-                {lyricsSection}
+      {/* View Switcher */}
+      {currentView === "home" ? (
+        <>
+          {/* Home View rendered with absolute positioning or standard flow */}
+          {/* TopBar is inside HomeView? No, TopBar is global or view specific. 
+                HomeView has its own header. TopBar in App was fixed. 
+                Let's use TopBar everywhere for consistency or let HomeView handle it? 
+                The design showed HomeView has a "Welcome" header. 
+                Existing TopBar has Import/Search. 
+                Let's Render TopBar globally but transparently? 
+                Or let Views handle their own headers. 
+                HomeView has a custom header. 
+                ImmersivePlayer needs TopBar. 
+            */}
+          <div className="flex-1 w-full h-full overflow-hidden relative z-20">
+            <TopBar
+              onFilesSelected={handleFileChange}
+              onSearchClick={() => setShowSearch(true)}
+              onLogoClick={navigateToHome} // Stay on home or refresh
+            />
+            <div className="pt-14 h-full">
+              <div className="pt-14 h-full">
+                <HomeView
+                  onNavigateToPlayer={navigateToPlayer}
+                  onPlayPlaylist={(songs, startIndex) => {
+                    // Replace queue and play
+                    playlist.setQueue(songs);
+                    playlist.setOriginalQueue(songs);
+                    setTimeout(() => playIndex(startIndex), 0);
+                  }}
+                  isPlaying={playState === PlayState.PLAYING}
+                  currentSong={currentSong}
+                  greeting="Welcome, Max"
+                />
               </div>
             </div>
           </div>
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-            <button
-              type="button"
-              onClick={toggleIndicator}
-              className="relative flex h-4 w-28 items-center justify-center rounded-full bg-white/10 backdrop-blur-2xl border border-white/15 transition-transform duration-200 active:scale-105"
-              style={{
-                transform: `translateX(${isDragging ? dragOffsetX * 0.04 : 0}px)`,
-              }}
-            >
-              <span
-                className={`absolute inset-0 rounded-full bg-white/25 backdrop-blur-[30px] transition-opacity duration-200 ${activePanel === "controls" ? "opacity-90" : "opacity-60"
-                  }`}
-              />
-            </button>
-          </div>
-        </div>
+        </>
       ) : (
-        <div className="flex-1 grid lg:grid-cols-2 w-full h-full">
-          {controlsSection}
-          {lyricsSection}
-        </div>
+        <ImmersivePlayer
+          currentSong={currentSong}
+          playState={playState}
+          currentTime={currentTime}
+          duration={duration}
+          playMode={playMode}
+          queue={playlist.queue}
+          audioRef={audioRef}
+          togglePlay={togglePlay}
+          toggleMode={toggleMode}
+          handleSeek={handleSeek}
+          playNext={playNext}
+          playPrev={playPrev}
+          playIndex={playIndex}
+          removeSongs={playlist.removeSongs}
+          volume={volume}
+          setVolume={setVolume}
+          speed={player.speed}
+          setSpeed={player.setSpeed}
+          preservesPitch={player.preservesPitch}
+          togglePreservesPitch={player.togglePreservesPitch}
+          accentColor={accentColor}
+          isBuffering={isBuffering}
+          bufferProgress={bufferProgress}
+          matchStatus={matchStatus}
+          isMobileLayout={isMobileLayout}
+          showPlaylist={showPlaylist}
+          setShowPlaylist={setShowPlaylist}
+          showVolumePopup={showVolumePopup}
+          setShowVolumePopup={setShowVolumePopup}
+          showSettingsPopup={showSettingsPopup}
+          setShowSettingsPopup={setShowSettingsPopup}
+          onSearchClick={() => setShowSearch(true)}
+          onFilesSelected={handleFileChange}
+          onImportUrl={handleImportUrl}
+          onNavigateHome={navigateToHome}
+          onAddToPlaylist={handleOpenAddToPlaylist}
+        />
       )}
+
+      {/* Add To Playlist Dialog */}
+      <AddToPlaylistDialog
+        isOpen={showAddToPlaylistDialog}
+        onClose={() => setShowAddToPlaylistDialog(false)}
+        songsToAdd={songsToAdd}
+        onSuccess={() => {
+          setSongsToAdd([]);
+          // We could show a toast here
+          toast.success("Added to playlist");
+        }}
+      />
+
 
       {/* Drag & Drop Overlay */}
       {isDraggingFile && (
