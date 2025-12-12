@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useTransition, animated, to } from "@react-spring/web";
 import { useToast } from "./hooks/useToast";
 import { PlayState, Song } from "./types";
 import FluidBackground from "./components/FluidBackground";
@@ -446,86 +447,86 @@ const App: React.FC = () => {
         onSeek={handleSeek}
       />
 
-      {/* View Switcher */}
-      {currentView === "home" ? (
-        <>
-          {/* Home View rendered with absolute positioning or standard flow */}
-          {/* TopBar is inside HomeView? No, TopBar is global or view specific. 
-                HomeView has its own header. TopBar in App was fixed. 
-                Let's use TopBar everywhere for consistency or let HomeView handle it? 
-                The design showed HomeView has a "Welcome" header. 
-                Existing TopBar has Import/Search. 
-                Let's Render TopBar globally but transparently? 
-                Or let Views handle their own headers. 
-                HomeView has a custom header. 
-                ImmersivePlayer needs TopBar. 
-            */}
-          <div className="flex-1 w-full h-full overflow-hidden relative z-20">
-            <TopBar
-              onFilesSelected={handleFileChange}
-              onSearchClick={() => setShowSearch(true)}
-              onLogoClick={navigateToHome} // Stay on home or refresh
-            />
-            <div className="pt-14 h-full">
-              <div className="pt-14 h-full">
-                <HomeView
-                  onNavigateToPlayer={navigateToPlayer}
-                  onPlayPlaylist={(songs, startIndex) => {
-                    // Replace queue and play
-                    playlist.setQueue(songs);
-                    playlist.setOriginalQueue(songs);
-                    setTimeout(() => playIndex(startIndex), 0);
-                  }}
-                  isPlaying={playState === PlayState.PLAYING}
-                  currentSong={currentSong}
-                  greeting="Welcome, Max"
+      {/* Animated View Transitions */}
+      {(() => {
+        const transitions = useTransition(currentView, {
+          initial: { opacity: 1, transform: "translate3d(0,0%,0) scale(1)" },
+          from: { opacity: 0, transform: "translate3d(0,10%,0) scale(0.98)" },
+          enter: { opacity: 1, transform: "translate3d(0,0%,0) scale(1)" },
+          leave: { opacity: 0, transform: "translate3d(0,-5%,0) scale(0.98)", pointerEvents: "none" },
+          config: { mass: 1, tension: 280, friction: 30 },
+          exitBeforeEnter: false, // Overlapping for seamless feel
+        });
+
+        return transitions((style, item) => (
+          <animated.div style={style} className="absolute inset-0 w-full h-full z-20 overflow-hidden">
+            {item === "home" ? (
+              <div className="flex-1 w-full h-full relative">
+                <TopBar
+                  onFilesSelected={handleFileChange}
+                  onSearchClick={() => setShowSearch(true)}
+                  onLogoClick={navigateToHome}
+                  visualizerMode={visualizerMode}
+                  onToggleVisualizerMode={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
                 />
+                <div className="h-full pt-16">
+                  <HomeView
+                    onNavigateToPlayer={navigateToPlayer}
+                    onPlayPlaylist={(songs, startIndex) => {
+                      playlist.setQueue(songs);
+                      playlist.setOriginalQueue(songs);
+                      setTimeout(() => playIndex(startIndex), 0);
+                    }}
+                    isPlaying={playState === PlayState.PLAYING}
+                    currentSong={currentSong}
+                  />
+                </div>
               </div>
-            </div>
-          </div>
-        </>
-      ) : (
-        <ImmersivePlayer
-          currentSong={currentSong}
-          playState={playState}
-          currentTime={currentTime}
-          duration={duration}
-          playMode={playMode}
-          queue={playlist.queue}
-          audioRef={audioRef}
-          togglePlay={togglePlay}
-          toggleMode={toggleMode}
-          handleSeek={handleSeek}
-          playNext={playNext}
-          playPrev={playPrev}
-          playIndex={playIndex}
-          removeSongs={playlist.removeSongs}
-          volume={volume}
-          setVolume={setVolume}
-          speed={player.speed}
-          setSpeed={player.setSpeed}
-          preservesPitch={player.preservesPitch}
-          togglePreservesPitch={player.togglePreservesPitch}
-          accentColor={accentColor}
-          isBuffering={isBuffering}
-          bufferProgress={bufferProgress}
-          matchStatus={matchStatus}
-          isMobileLayout={isMobileLayout}
-          showPlaylist={showPlaylist}
-          setShowPlaylist={setShowPlaylist}
-          visualizerMode={visualizerMode}
-          onToggleVisualizerMode={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
-          showVolumePopup={showVolumePopup}
-          setShowVolumePopup={setShowVolumePopup}
-          showSettingsPopup={showSettingsPopup}
-          setShowSettingsPopup={setShowSettingsPopup}
-          onSearchClick={() => setShowSearch(true)}
-          onFilesSelected={handleFileChange}
-          onImportUrl={handleImportUrl}
-          onNavigateHome={navigateToHome}
-          onAddToPlaylist={handleOpenAddToPlaylist}
-        />
-      )}
+            ) : (
+              <ImmersivePlayer
+                currentSong={currentSong}
+                playState={playState}
+                currentTime={currentTime}
+                duration={duration}
+                playMode={playMode}
+                queue={playlist.queue}
+                audioRef={audioRef}
+                togglePlay={togglePlay}
+                toggleMode={toggleMode}
+                handleSeek={handleSeek}
+                playNext={playNext}
+                playPrev={playPrev}
+                playIndex={playIndex}
+                removeSongs={playlist.removeSongs}
+                volume={volume}
+                setVolume={setVolume}
+                speed={player.speed}
+                setSpeed={player.setSpeed}
+                preservesPitch={player.preservesPitch}
+                togglePreservesPitch={player.togglePreservesPitch}
+                accentColor={accentColor}
+                isBuffering={isBuffering}
+                bufferProgress={bufferProgress}
+                matchStatus={matchStatus}
+                isMobileLayout={isMobileLayout}
+                showPlaylist={showPlaylist}
+                setShowPlaylist={setShowPlaylist}
+                visualizerMode={visualizerMode}
+                onToggleVisualizerMode={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
+                showVolumePopup={showVolumePopup}
+                setShowVolumePopup={setShowVolumePopup}
+                showSettingsPopup={showSettingsPopup}
+                setShowSettingsPopup={setShowSettingsPopup}
+                onSearchClick={() => setShowSearch(true)}
+                onFilesSelected={handleFileChange}
+                onImportUrl={handleImportUrl}
+                onNavigateHome={navigateToHome}
+                onAddToPlaylist={handleOpenAddToPlaylist}
+              />
+            )}
+          </animated.div>
+        ));
+      })()}
 
       {/* Add To Playlist Dialog */}
       <AddToPlaylistDialog

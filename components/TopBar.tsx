@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { AuraLogo, SearchIcon, CloudDownloadIcon, InfoIcon, FullscreenIcon } from "./Icons";
+import { AuraLogo, SearchIcon, CloudDownloadIcon, InfoIcon, FullscreenIcon, SparklesIcon } from "./Icons";
 import AboutDialog from "./AboutDialog";
 
 interface TopBarProps {
@@ -7,6 +7,8 @@ interface TopBarProps {
   onSearchClick: () => void;
   disabled?: boolean;
   onLogoClick?: () => void;
+  visualizerMode?: 'fluid' | 'gradient';
+  onToggleVisualizerMode?: () => void;
 }
 
 const TopBar: React.FC<TopBarProps> = ({
@@ -14,6 +16,8 @@ const TopBar: React.FC<TopBarProps> = ({
   onSearchClick,
   disabled,
   onLogoClick,
+  visualizerMode,
+  onToggleVisualizerMode
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -133,6 +137,17 @@ const TopBar: React.FC<TopBarProps> = ({
           >
             <SearchIcon className="w-5 h-5" />
           </button>
+
+          {/* Visualizer Toggle */}
+          {onToggleVisualizerMode && (
+            <button
+              onClick={onToggleVisualizerMode}
+              className={`w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center transition-all shadow-sm ${visualizerMode === 'fluid' ? 'text-white bg-white/20' : 'text-white/60 hover:text-white hover:bg-white/20'}`}
+              title={`Visualizer: ${visualizerMode === 'fluid' ? 'Fluid' : 'Gradient'}`}
+            >
+              <SparklesIcon className="w-5 h-5" />
+            </button>
+          )}
 
           {/* Import Button */}
           <button

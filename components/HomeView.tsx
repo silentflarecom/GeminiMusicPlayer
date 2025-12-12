@@ -25,7 +25,7 @@ const HomeView: React.FC<HomeViewProps> = ({
     onPlayPlaylist,
     isPlaying,
     currentSong,
-    greeting = "Welcome"
+    greeting
 }) => {
     const { profile, updateProfile } = useUserProfile();
     const { playlists, createPlaylist, deletePlaylist } = useLibrary();
