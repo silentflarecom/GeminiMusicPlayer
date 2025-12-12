@@ -8,8 +8,10 @@ import PlaylistPanel from "./components/PlaylistPanel";
 import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import TopBar from "./components/TopBar";
 import SearchModal from "./components/SearchModal";
+import HomePage from "./components/HomePage";
 import { usePlaylist } from "./hooks/usePlaylist";
 import { usePlayer } from "./hooks/usePlayer";
+import { useLibrary } from "./hooks/useLibrary";
 import { keyboardRegistry } from "./services/keyboardRegistry";
 import MediaSessionController from "./components/MediaSessionController";
 import { CloudDownloadIcon } from "./components/Icons";
@@ -17,6 +19,8 @@ import { CloudDownloadIcon } from "./components/Icons";
 const App: React.FC = () => {
   const { toast } = useToast();
   const playlist = usePlaylist();
+  const library = useLibrary();
+
   const player = usePlayer({
     queue: playlist.queue,
     originalQueue: playlist.originalQueue,
@@ -55,9 +59,19 @@ const App: React.FC = () => {
 
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showHome, setShowHome] = useState(true);
   const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
   const [volume, setVolume] = useState(1);
+
+  // Better history tracking: Track when currentSong changes
+  const lastHistorySongId = useRef<string | null>(null);
+  useEffect(() => {
+    if (currentSong && currentSong.id !== lastHistorySongId.current) {
+      library.addToHistory(currentSong);
+      lastHistorySongId.current = currentSong.id;
+    }
+  }, [currentSong, library]);
 
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [activePanel, setActivePanel] = useState<"controls" | "lyrics">(
@@ -66,52 +80,10 @@ const App: React.FC = () => {
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   // Global Drag & Drop State
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragCounter = useRef(0);
-
-  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current += 1;
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      setIsDraggingFile(true);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounter.current -= 1;
-    if (dragCounter.current === 0) {
-      setIsDraggingFile(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingFile(false);
-    dragCounter.current = 0;
-
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const wasEmpty = playlist.queue.length === 0;
-      const addedSongs = await playlist.addLocalFiles(files);
-      if (addedSongs.length > 0) {
-        setTimeout(() => {
-          handlePlaylistAddition(addedSongs, wasEmpty);
-        }, 0);
-        toast.success(`Imported ${addedSongs.length} local files`);
-      }
-    }
-  };
 
   const mobileViewportRef = useRef<HTMLDivElement>(null);
   const [paneWidth, setPaneWidth] = useState(() => {
@@ -166,7 +138,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Global Search Shortcut (Registered directly via useEffect for simplicity, or could use useKeyboardScope with high priority)
+  // Global Search Shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -186,6 +158,28 @@ const App: React.FC = () => {
         handlePlaylistAddition(addedSongs, wasEmpty);
       }, 0);
     }
+  };
+
+  const handleSaveQueueToPlaylist = () => {
+    if (playlist.queue.length === 0) {
+      toast.error("Queue is empty");
+      return;
+    }
+    const name = `Playlist ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+    const newName = prompt("Enter playlist name:", name);
+    if (newName) {
+      library.createPlaylist(newName, playlist.queue);
+      toast.success("Playlist saved to Library");
+    }
+  };
+
+  const handlePlayPlaylist = (songs: Song[]) => {
+    if (songs.length === 0) return;
+    playlist.setQueue(songs);
+    playlist.setOriginalQueue(songs);
+    playIndex(0);
+    setShowHome(false);
+    toast.success(`Playing ${songs.length} songs`);
   };
 
   const handleImportUrl = async (input: string): Promise<boolean> => {
@@ -208,7 +202,6 @@ const App: React.FC = () => {
   };
 
   const handleImportAndPlay = (song: Song) => {
-    // Check if song already exists in queue (by neteaseId for cloud songs, or by id)
     const existingIndex = playlist.queue.findIndex((s) => {
       if (song.isNetease && s.isNetease) {
         return s.neteaseId === song.neteaseId;
@@ -217,10 +210,8 @@ const App: React.FC = () => {
     });
 
     if (existingIndex !== -1) {
-      // Song already in queue, just play it
       playIndex(existingIndex);
     } else {
-      // Add and play atomically - no race conditions!
       addSongAndPlay(song);
     }
   };
@@ -228,6 +219,48 @@ const App: React.FC = () => {
   const handleAddToQueue = (song: Song) => {
     playlist.setQueue((prev) => [...prev, song]);
     playlist.setOriginalQueue((prev) => [...prev, song]);
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setIsDraggingFile(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+    dragCounter.current = 0;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const wasEmpty = playlist.queue.length === 0;
+      const addedSongs = await playlist.addLocalFiles(files);
+      if (addedSongs.length > 0) {
+        setTimeout(() => {
+          handlePlaylistAddition(addedSongs, wasEmpty);
+        }, 0);
+        toast.success(`Imported ${addedSongs.length} local files`);
+      }
+    }
   };
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -329,6 +362,7 @@ const App: React.FC = () => {
           onRemove={playlist.removeSongs}
           accentColor={accentColor}
           onAddFiles={handleFileChange}
+          onSavePlaylist={handleSaveQueueToPlaylist}
         />
       </div>
     </div>
@@ -416,6 +450,7 @@ const App: React.FC = () => {
       <TopBar
         onFilesSelected={handleFileChange}
         onSearchClick={() => setShowSearch(true)}
+        onHomeClick={() => setShowHome(true)}
       />
 
       {/* Search Modal - Always rendered to preserve state, visibility handled internally */}
@@ -429,6 +464,17 @@ const App: React.FC = () => {
         currentSong={currentSong}
         isPlaying={playState === PlayState.PLAYING}
         accentColor={accentColor}
+      />
+
+      {/* Home Dashboard */}
+      <HomePage
+        isVisible={showHome}
+        playlists={library.playlists}
+        history={library.history}
+        onCreatePlaylist={(name) => library.createPlaylist(name, [])}
+        onPlayPlaylist={handlePlayPlaylist}
+        onDeletePlaylist={library.deletePlaylist}
+        onClose={() => setShowHome(false)}
       />
 
       {/* Main Content Split */}

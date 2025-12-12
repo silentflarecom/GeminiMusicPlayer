@@ -1,16 +1,18 @@
 import React, { useRef, useState } from "react";
-import { AuraLogo, SearchIcon, CloudDownloadIcon, InfoIcon, FullscreenIcon } from "./Icons";
+import { AuraLogo, SearchIcon, CloudDownloadIcon, InfoIcon, FullscreenIcon, HomeIcon } from "./Icons";
 import AboutDialog from "./AboutDialog";
 
 interface TopBarProps {
   onFilesSelected: (files: FileList) => void;
   onSearchClick: () => void;
+  onHomeClick?: () => void;
   disabled?: boolean;
 }
 
 const TopBar: React.FC<TopBarProps> = ({
   onFilesSelected,
   onSearchClick,
+  onHomeClick,
   disabled,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,6 +122,17 @@ const TopBar: React.FC<TopBarProps> = ({
         <div
           className={`flex gap-3 ${baseTransitionClasses} delay-75 ${mobileActiveClasses} ${hoverSupportClasses}`}
         >
+          {/* Home Button */}
+          {onHomeClick && (
+            <button
+              onClick={onHomeClick}
+              className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/20 hover:text-white transition-all shadow-sm"
+              title="Home Dashboard"
+            >
+              <HomeIcon className="w-5 h-5" />
+            </button>
+          )}
+
           {/* Search Button */}
           <button
             onClick={onSearchClick}

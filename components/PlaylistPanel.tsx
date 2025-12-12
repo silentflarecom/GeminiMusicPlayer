@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTransition, animated } from '@react-spring/web';
 import { Song } from '../types';
-import { CheckIcon, PlusIcon, QueueIcon, TrashIcon, SelectAllIcon, CloudDownloadIcon } from './Icons';
+import { CheckIcon, PlusIcon, QueueIcon, TrashIcon, SelectAllIcon, CloudDownloadIcon, SaveIcon } from './Icons';
 import { useKeyboardScope } from '../hooks/useKeyboardScope';
 import ImportMusicDialog from './ImportMusicDialog';
 import SmartImage from './SmartImage';
@@ -42,6 +42,7 @@ interface PlaylistPanelProps {
     onRemove: (ids: string[]) => void;
     accentColor: string;
     onAddFiles?: (files: FileList) => void;
+    onSavePlaylist?: () => void;
 }
 
 const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
@@ -53,7 +54,8 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
     onImport,
     onRemove,
     accentColor,
-    onAddFiles
+    onAddFiles,
+    onSavePlaylist
 }) => {
     // State to toggle the add options menu
     const [showAddMenu, setShowAddMenu] = useState(false);
@@ -301,6 +303,21 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({
                                     {/* Add Options Menu */}
                                     {showAddMenu && (
                                         <div className="absolute top-10 right-0 w-48 bg-[#1c1c1e] border border-white/10 rounded-xl shadow-xl overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                                            {onSavePlaylist && (
+                                                <>
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowAddMenu(false);
+                                                            onSavePlaylist();
+                                                        }}
+                                                        className="w-full text-left px-4 py-3 text-[14px] text-white hover:bg-white/10 flex items-center gap-3 transition-colors"
+                                                    >
+                                                        <SaveIcon className="w-4 h-4 text-purple-400" />
+                                                        <span>Save as Playlist</span>
+                                                    </button>
+                                                    <div className="h-[1px] bg-white/5 mx-2"></div>
+                                                </>
+                                            )}
                                             <button
                                                 onClick={() => {
                                                     setShowAddMenu(false);

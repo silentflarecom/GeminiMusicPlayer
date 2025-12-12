@@ -39,3 +39,11 @@ export enum PlayMode {
   LOOP_ONE,
   SHUFFLE
 }
+
+export interface StoredPlaylist {
+  id: string;
+  name: string;
+  songs: Song[];
+  createdAt: number;
+  coverUrl?: string; // Optional cover from the first song
+}
