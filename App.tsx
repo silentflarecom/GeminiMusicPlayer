@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useTransition, animated, to } from "@react-spring/web";
 import { useToast } from "./hooks/useToast";
 import { PlayState, Song } from "./types";
@@ -10,6 +10,7 @@ import KeyboardShortcuts from "./components/KeyboardShortcuts";
 import TopBar from "./components/TopBar";
 import SearchModal from "./components/SearchModal";
 import { usePlaylist } from "./hooks/usePlaylist";
+import { useLibrary } from "./hooks/useLibrary";
 import { usePlayer } from "./hooks/usePlayer";
 import { keyboardRegistry } from "./services/keyboardRegistry";
 import MediaSessionController from "./components/MediaSessionController";
@@ -25,6 +26,7 @@ type ViewState = "home" | "player";
 const App: React.FC = () => {
   const { toast } = useToast();
   const playlist = usePlaylist();
+  const library = useLibrary(); // Init library hook
   const player = usePlayer({
     queue: playlist.queue,
     originalQueue: playlist.originalQueue,
@@ -80,16 +82,13 @@ const App: React.FC = () => {
 
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragCounter = useRef(0);
-  const homeFileInputRef = useRef<HTMLInputElement>(null);
 
   // View Routing State
   const [currentView, setCurrentView] = useState<ViewState>("home");
   const [visualizerMode, setVisualizerMode] = useState<'fluid' | 'gradient'>('fluid');
 
-  // Liked song state
   const [isCurrentSongLiked, setIsCurrentSongLiked] = useState(false);
 
-  // Update liked status when current song changes
   useEffect(() => {
     if (currentSong) {
       setIsCurrentSongLiked(userDataService.isLiked(currentSong.id));
@@ -98,23 +97,17 @@ const App: React.FC = () => {
     }
   }, [currentSong?.id]);
 
-  // Also record to recently played when a song starts playing
-  useEffect(() => {
-    if (currentSong && playState === PlayState.PLAYING) {
-      userDataService.addToHistory(currentSong);
+  const toggleCurrentLike = () => {
+    if (currentSong) {
+      const isLiked = userDataService.toggleLike(currentSong);
+      setIsCurrentSongLiked(isLiked);
+      if (isLiked) {
+        toast.success("Added to Liked Songs");
+      } else {
+        toast.success("Removed from Liked Songs");
+      }
     }
-  }, [currentSong?.id, playState]);
-
-  const handleToggleLike = useCallback(() => {
-    if (!currentSong) return;
-    const nowLiked = userDataService.toggleLike(currentSong);
-    setIsCurrentSongLiked(nowLiked);
-    if (nowLiked) {
-      toast.success(`Added "${currentSong.title}" to Liked Songs`);
-    } else {
-      toast.success(`Removed "${currentSong.title}" from Liked Songs`);
-    }
-  }, [currentSong, toast]);
+  };
 
   // Auto-switch to player when a song starts playing from a non-playing state?
   // Or just let user control it. 
@@ -165,6 +158,9 @@ const App: React.FC = () => {
       const wasEmpty = playlist.queue.length === 0;
       const addedSongs = await playlist.addLocalFiles(files);
       if (addedSongs.length > 0) {
+        // Persist local files
+        addedSongs.forEach(song => library.addLocalSong(song));
+
         setTimeout(() => {
           handlePlaylistAddition(addedSongs, wasEmpty);
         }, 0);
@@ -242,6 +238,9 @@ const App: React.FC = () => {
     const wasEmpty = playlist.queue.length === 0;
     const addedSongs = await playlist.addLocalFiles(files);
     if (addedSongs.length > 0) {
+      // Persist local files
+      addedSongs.forEach(song => library.addLocalSong(song));
+
       setTimeout(() => {
         handlePlaylistAddition(addedSongs, wasEmpty);
       }, 0);
@@ -515,8 +514,7 @@ const App: React.FC = () => {
                     currentSong={currentSong}
                     onSettingsClick={() => setShowAppSettings(true)}
                     onThemeClick={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
-                    onImportFiles={() => homeFileInputRef.current?.click()}
-                    onImportUrl={handleImportUrl}
+                    onFilesSelected={handleFileChange}
                   />
                 </div>
               </div>
@@ -561,7 +559,7 @@ const App: React.FC = () => {
                 onNavigateHome={navigateToHome}
                 onAddToPlaylist={handleOpenAddToPlaylist}
                 isLiked={isCurrentSongLiked}
-                onToggleLike={handleToggleLike}
+                onToggleLike={toggleCurrentLike}
               />
             )}
           </animated.div>
@@ -616,21 +614,6 @@ const App: React.FC = () => {
           </p>
         </div>
       )}
-
-      {/* Hidden file input for HomeView folder import */}
-      <input
-        type="file"
-        ref={homeFileInputRef}
-        className="hidden"
-        multiple
-        {...({ webkitdirectory: "", directory: "" } as any)}
-        onChange={(e) => {
-          if (e.target.files && e.target.files.length > 0) {
-            handleFileChange(e.target.files);
-          }
-          e.target.value = "";
-        }}
-      />
     </div>
   );
 };

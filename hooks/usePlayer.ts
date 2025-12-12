@@ -14,6 +14,7 @@ import {
   searchAndMatchLyrics,
 } from "../services/lyricsService";
 import { audioResourceCache } from "../services/cache";
+import { userDataService } from "../services/userDataService";
 import { useToast } from "./useToast";
 
 type MatchStatus = "idle" | "matching" | "success" | "failed";
@@ -414,20 +415,39 @@ export const usePlayer = ({
       const errorMessage = audio.error?.message || "Unknown error";
       console.warn(`Audio playback error detected (Code: ${errorCode}):`, errorMessage);
 
-      if (retryCount < 3) {
-        toast.error(`Playback error. Retrying... (${retryCount + 1}/3)`);
+      // Special handling for Code 4 (Format Error / Not Supported)
+      // Often means 404 on the source (stale blob) or corrupt file
+      if (errorCode === 4 && audio.src.startsWith("blob:")) {
+        toast.error("Audio file no longer accessible. Try reloading or re-importing.");
+        // Stop playback immediately, do not retry
+        audio.pause();
+        setPlayState(PlayState.PAUSED);
+        return;
+      }
+
+      if (retryCount < 2) { // Reduce retries to 2
+        // Only retry for network errors or transient issues if not explicitly a missing blob
+        console.log(`Retrying playback... (${retryCount + 1}/2)`);
         setRetryCount((prev) => prev + 1);
 
-        // Attempt to reload the audio source
         const currentSrc = audio.src;
+        // Simple retry with backoff
         setTimeout(() => {
-          if (audioRef.current) {
+          if (audioRef.current && audioRef.current.src === currentSrc) {
             audioRef.current.load();
-            audioRef.current.play().catch(e => console.warn("Retry play failed", e));
+            const playPromise = audioRef.current.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(e => {
+                // AbortError is common if user skips quickly, ignore it
+                if (e.name !== 'AbortError') {
+                  console.warn("Retry play failed", e);
+                }
+              });
+            }
           }
-        }, 1000);
+        }, 1500);
       } else {
-        toast.error("Playback failed after multiple attempts. Please check your connection or try another song.");
+        toast.error("Playback failed. File might be missing or corrupted.");
         audio.pause();
         setPlayState(PlayState.PAUSED);
       }
@@ -438,6 +458,7 @@ export const usePlayer = ({
       setRetryCount(0);
     }
 
+    // Only add listeners if audio element is stable
     audio.addEventListener("error", handleAudioError);
     audio.addEventListener("playing", handlePlaying);
 
@@ -897,6 +918,15 @@ export const usePlayer = ({
       releaseObjectUrl();
     };
   }, [currentSong?.fileUrl]);
+
+  // History tracking
+  useEffect(() => {
+    if (currentSong) {
+      // Avoid adding on every render, only when song ID changes
+      // But useEffect with currentSong.id as dependency handles that.
+      userDataService.addToHistory(currentSong);
+    }
+  }, [currentSong?.id]); // Only when ID changes
 
   return {
     audioRef,

@@ -27,6 +27,8 @@ export interface Song {
   isNetease?: boolean;
   neteaseId?: string;
   album?: string;
+  fileBlob?: Blob; // Persisted file content for local files
+  addedAt?: number; // Timestamp for sorting
 }
 
 export enum PlayState {

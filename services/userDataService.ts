@@ -3,7 +3,8 @@ import { Song } from "../types";
 const STORAGE_KEYS = {
     LIKED_SONGS: 'aura_liked_songs',
     RECENT_SONGS: 'aura_recent_songs',
-    LIKED_IDS: 'aura_liked_ids'
+    LIKED_IDS: 'aura_liked_ids',
+    LOCAL_FILES: 'aura_local_files'
 };
 
 class UserDataService {
@@ -71,6 +72,29 @@ class UserDataService {
         // Limit to 50
         if (songs.length > 50) songs = songs.slice(0, 50);
         localStorage.setItem(STORAGE_KEYS.RECENT_SONGS, JSON.stringify(songs));
+    }
+
+    // Local Files
+    getLocalFiles(): Song[] {
+        try {
+            const json = localStorage.getItem(STORAGE_KEYS.LOCAL_FILES);
+            return json ? JSON.parse(json) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    addLocalFile(song: Song) {
+        const songs = this.getLocalFiles();
+        if (songs.some(s => s.id === song.id)) return;
+        const newSongs = [...songs, song];
+        localStorage.setItem(STORAGE_KEYS.LOCAL_FILES, JSON.stringify(newSongs));
+    }
+
+    removeLocalFile(songId: string) {
+        const songs = this.getLocalFiles();
+        const newSongs = songs.filter(s => s.id !== songId);
+        localStorage.setItem(STORAGE_KEYS.LOCAL_FILES, JSON.stringify(newSongs));
     }
 }
 

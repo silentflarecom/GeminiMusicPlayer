@@ -1,4 +1,4 @@
-import { PlayIcon, QueueIcon, SettingsIcon, UserIcon, CloudDownloadIcon, LinkIcon } from './Icons';
+import { PlayIcon, QueueIcon, SettingsIcon, UserIcon, LikeIcon as HeartIcon, ClockIcon, CloudDownloadIcon } from './Icons';
 import { useState, useEffect, useRef } from 'react';
 import { useTransition, animated } from '@react-spring/web';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -6,27 +6,22 @@ import { useLibrary } from '../hooks/useLibrary';
 import ProfileDialog from './ProfileDialog';
 import { Song, Playlist } from '../types';
 import CreatePlaylistDialog from './CreatePlaylistDialog';
-import { SparklesIcon } from './Icons';
-import PlaylistDetail from './PlaylistDetail';
-
-// Folder icon for local files
-const FolderIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z" />
-    </svg>
-);
+import { userDataService } from '../services/userDataService';
 
 interface HomeViewProps {
     onNavigateToPlayer: () => void;
+    // New prop to handle playing a full playlist
     onPlayPlaylist: (songs: Song[], startIndex: number) => void;
     isPlaying: boolean;
     currentSong: Song | null;
     greeting?: string;
     onSettingsClick: () => void;
     onThemeClick: () => void;
-    onImportFiles?: () => void;
-    onImportUrl?: (url: string) => Promise<boolean>;
+    onFilesSelected?: (files: FileList) => void;
 }
+import { SparklesIcon } from './Icons';
+
+import PlaylistDetail from './PlaylistDetail';
 
 const HomeView: React.FC<HomeViewProps> = ({
     onNavigateToPlayer,
@@ -36,8 +31,7 @@ const HomeView: React.FC<HomeViewProps> = ({
     greeting,
     onSettingsClick,
     onThemeClick,
-    onImportFiles,
-    onImportUrl
+    onFilesSelected
 }) => {
     const { profile, updateProfile } = useUserProfile();
     const { playlists, createPlaylist, deletePlaylist } = useLibrary();
@@ -64,21 +58,58 @@ const HomeView: React.FC<HomeViewProps> = ({
 
     const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-    // Netease URL import state
-    const [neteaseUrl, setNeteaseUrl] = useState('');
-    const [isImporting, setIsImporting] = useState(false);
+    // Dynamic Counts
+    const [likedCount, setLikedCount] = useState(0);
+    const [recentCount, setRecentCount] = useState(0);
+    const [localCount, setLocalCount] = useState(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleNeteaseImport = async () => {
-        if (!neteaseUrl.trim() || isImporting || !onImportUrl) return;
-        setIsImporting(true);
-        try {
-            const success = await onImportUrl(neteaseUrl.trim());
-            if (success) {
-                setNeteaseUrl('');
-            }
-        } finally {
-            setIsImporting(false);
+    useEffect(() => {
+        setLikedCount(userDataService.getLikedSongs().length);
+        setRecentCount(userDataService.getRecentSongs().length);
+        setLocalCount(userDataService.getLocalFiles().length);
+
+        // Listen for storage events to update counts across tabs or components?
+        // Or just re-fetch when HomeView mounts/focuses.
+        // For now, simple mount fetch is enough.
+    }, [isProfileOpen]); // Refresh when profile closes/opens just in case (hacky but simple)
+
+
+    const handleOpenQuickAccess = async (type: 'liked' | 'recent' | 'local') => {
+        let title = "";
+        let songs: Song[] = [];
+        let id = "";
+
+        if (type === 'liked') {
+            title = "Liked Songs";
+            songs = userDataService.getLikedSongs();
+            id = "liked_songs_virtual";
+        } else if (type === 'recent') {
+            title = "Recently Played";
+            songs = userDataService.getRecentSongs();
+            id = "recent_songs_virtual";
+            // TODO: Ensure uniqueness or playback issues? Queue handles it.
+        } else if (type === 'local') {
+            title = "Local Files";
+            songs = userDataService.getLocalFiles();
+            id = "local_files_virtual";
         }
+
+        const virtualPlaylist: Playlist = {
+            id,
+            name: title,
+            createdAt: Date.now(),
+            songs,
+            coverUrl: undefined // Could use specific icons
+        };
+
+        if (type === 'local' && songs.length === 0) {
+            // Trigger file input to import local files
+            fileInputRef.current?.click();
+            return;
+        }
+
+        setSelectedPlaylist(virtualPlaylist);
     };
 
     return (
@@ -124,101 +155,44 @@ const HomeView: React.FC<HomeViewProps> = ({
                 </div>
             </div>
 
-            {/* Import Cards - Main Action Area */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-                {/* Netease Cloud Music Import */}
-                <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-red-500/20 via-red-400/15 to-rose-500/20 backdrop-blur-xl border border-white/10 p-6 hover:border-white/20 transition-all duration-300">
-                    {/* Background decoration */}
-                    <div className="absolute -top-4 -right-4 w-32 h-32 bg-red-500/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
-
-                    <div className="relative z-10">
-                        {/* Header */}
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg shadow-red-500/30">
-                                <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-2.49 0-4.5-2.01-4.5-4.5S9.51 7.5 12 7.5s4.5 2.01 4.5 4.5-2.01 4.5-4.5 4.5zm0-5.5c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-white">Netease Cloud Music</h3>
-                                <p className="text-white/50 text-sm">Import from link</p>
-                            </div>
-                        </div>
-
-                        {/* Description */}
-                        <p className="text-white/60 text-sm mb-4 leading-relaxed">
-                            Paste a song or playlist link to import with cover art and lyrics
-                        </p>
-
-                        {/* URL Input */}
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={neteaseUrl}
-                                onChange={(e) => setNeteaseUrl(e.target.value)}
-                                placeholder="https://music.163.com/..."
-                                className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:bg-white/15 transition-all text-sm"
-                                disabled={isImporting}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        handleNeteaseImport();
-                                    }
-                                }}
-                            />
-                            <button
-                                onClick={handleNeteaseImport}
-                                disabled={isImporting || !neteaseUrl.trim()}
-                                className={`px-5 py-3 rounded-xl font-semibold flex items-center gap-2 transition-all ${isImporting || !neteaseUrl.trim()
-                                    ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-red-500 to-rose-500 text-white hover:from-red-600 hover:to-rose-600 active:scale-[0.98] shadow-lg shadow-red-500/25'
-                                    }`}
-                            >
-                                {isImporting ? (
-                                    <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                ) : (
-                                    <LinkIcon className="w-5 h-5" />
-                                )}
-                                <span className="hidden sm:inline">{isImporting ? 'Importing...' : 'Import'}</span>
-                            </button>
-                        </div>
+            {/* Quick Access Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                <div
+                    onClick={() => handleOpenQuickAccess('liked')}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                >
+                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
+                        <HeartIcon className="w-12 h-12 text-white/20" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-end">
+                        <h3 className="text-2xl font-bold text-white mb-1">Liked Songs</h3>
+                        <p className="text-white/60">{likedCount} tracks</p>
                     </div>
                 </div>
 
-                {/* Local Files Import */}
-                <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/20 via-teal-400/15 to-cyan-500/20 backdrop-blur-xl border border-white/10 p-6 hover:border-white/20 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-500/10">
-                    {/* Background decoration */}
-                    <div className="absolute -top-4 -right-4 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-500"></div>
+                <div
+                    onClick={() => handleOpenQuickAccess('recent')}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                >
+                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
+                        <ClockIcon className="w-12 h-12 text-white/20" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-end">
+                        <h3 className="text-2xl font-bold text-white mb-1">Recently Played</h3>
+                        <p className="text-white/60">{recentCount} tracks</p>
+                    </div>
+                </div>
 
-                    <div className="relative z-10">
-                        {/* Header */}
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                                <FolderIcon className="w-7 h-7 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-white">Local Files</h3>
-                                <p className="text-white/50 text-sm">Import from folder</p>
-                            </div>
-                        </div>
-
-                        {/* Description */}
-                        <p className="text-white/60 text-sm mb-4 leading-relaxed">
-                            Import music from your local folder. Supports MP3, FLAC, WAV and more
-                        </p>
-
-                        {/* Action Button */}
-                        <button
-                            onClick={onImportFiles}
-                            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold flex items-center justify-center gap-2 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.98] transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
-                        >
-                            <CloudDownloadIcon className="w-5 h-5" />
-                            <span>Select Folder</span>
-                        </button>
+                <div
+                    onClick={() => handleOpenQuickAccess('local')}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                >
+                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
+                        <CloudDownloadIcon className="w-12 h-12 text-white/20" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-end">
+                        <h3 className="text-2xl font-bold text-white mb-1">Local Files</h3>
+                        <p className="text-white/60">{localCount} tracks</p>
                     </div>
                 </div>
             </div>
@@ -347,6 +321,21 @@ const HomeView: React.FC<HomeViewProps> = ({
                 onCreate={(name) => {
                     createPlaylist(name);
                     setShowCreateDialog(false);
+                }}
+            />
+
+            {/* Hidden File Input for Local Files Import */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*,.lrc,.txt"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0 && onFilesSelected) {
+                        onFilesSelected(e.target.files);
+                    }
+                    e.target.value = ''; // Reset for re-selection
                 }}
             />
         </div>
