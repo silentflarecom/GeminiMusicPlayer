@@ -6,12 +6,14 @@ import { useLibrary } from '../hooks/useLibrary';
 import ProfileDialog from './ProfileDialog';
 import { Song, Playlist } from '../types';
 import CreatePlaylistDialog from './CreatePlaylistDialog';
+import ImportMusicDialog from './ImportMusicDialog';
 import { userDataService } from '../services/userDataService';
 
 interface HomeViewProps {
     onNavigateToPlayer: () => void;
     // New prop to handle playing a full playlist
     onPlayPlaylist: (songs: Song[], startIndex: number) => void;
+    onImportUrl: (url: string) => Promise<boolean>;
     isPlaying: boolean;
     currentSong: Song | null;
     greeting?: string;
@@ -27,6 +29,7 @@ import PlaylistDetail from './PlaylistDetail';
 const HomeView: React.FC<HomeViewProps> = ({
     onNavigateToPlayer,
     onPlayPlaylist,
+    onImportUrl,
     isPlaying,
     currentSong,
     greeting,
@@ -38,6 +41,7 @@ const HomeView: React.FC<HomeViewProps> = ({
     const { profile, updateProfile } = useUserProfile();
     const { playlists, createPlaylist, deletePlaylist } = useLibrary();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isImportOpen, setIsImportOpen] = useState(false);
     const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
 
     const handleCreatePlaylist = async () => {
@@ -161,19 +165,19 @@ const HomeView: React.FC<HomeViewProps> = ({
             {/* Import Actions Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                 <div
-                    onClick={onSearchClick}
+                    onClick={() => setIsImportOpen(true)}
                     className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600/30 to-blue-600/30 backdrop-blur-xl border border-white/10 p-8 hover:border-white/30 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
                 >
                     <div className="absolute top-0 right-0 p-8 opacity-30 group-hover:scale-110 group-hover:opacity-50 transition-all duration-500">
-                        <SearchIcon className="w-24 h-24 text-white" />
+                        <CloudDownloadIcon className="w-24 h-24 text-white" />
                     </div>
                     <div className="relative z-10 flex flex-col h-full justify-between min-h-[140px]">
                         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4 group-hover:bg-white/20 transition-colors">
-                            <SearchIcon className="w-6 h-6 text-white" />
+                            <CloudDownloadIcon className="w-6 h-6 text-white" />
                         </div>
                         <div>
                             <h3 className="text-2xl font-bold text-white mb-2">Import from Netease</h3>
-                            <p className="text-white/60">Search and import songs from the cloud</p>
+                            <p className="text-white/60">Paste a song or playlist link</p>
                         </div>
                     </div>
                 </div>
@@ -370,6 +374,12 @@ const HomeView: React.FC<HomeViewProps> = ({
                     createPlaylist(name);
                     setShowCreateDialog(false);
                 }}
+            />
+
+            <ImportMusicDialog
+                isOpen={isImportOpen}
+                onClose={() => setIsImportOpen(false)}
+                onImport={onImportUrl}
             />
 
             {/* Hidden File Input for Local Files Import */}

@@ -516,6 +516,7 @@ const App: React.FC = () => {
                     onThemeClick={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
                     onFilesSelected={handleFileChange}
                     onSearchClick={() => setShowSearch(true)}
+                    onImportUrl={handleImportUrl}
                   />
                 </div>
               </div>
