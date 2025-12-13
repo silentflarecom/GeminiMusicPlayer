@@ -515,6 +515,7 @@ const App: React.FC = () => {
                     onSettingsClick={() => setShowAppSettings(true)}
                     onThemeClick={() => setVisualizerMode(prev => prev === 'fluid' ? 'gradient' : 'fluid')}
                     onFilesSelected={handleFileChange}
+                    onSearchClick={() => setShowSearch(true)}
                   />
                 </div>
               </div>

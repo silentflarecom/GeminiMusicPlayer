@@ -1,4 +1,4 @@
-import { PlayIcon, QueueIcon, SettingsIcon, UserIcon, LikeIcon as HeartIcon, ClockIcon, CloudDownloadIcon } from './Icons';
+import { PlayIcon, QueueIcon, SettingsIcon, UserIcon, LikeIcon as HeartIcon, ClockIcon, CloudDownloadIcon, SearchIcon } from './Icons';
 import { useState, useEffect, useRef } from 'react';
 import { useTransition, animated } from '@react-spring/web';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -18,6 +18,7 @@ interface HomeViewProps {
     onSettingsClick: () => void;
     onThemeClick: () => void;
     onFilesSelected?: (files: FileList) => void;
+    onSearchClick: () => void;
 }
 import { SparklesIcon } from './Icons';
 
@@ -31,7 +32,8 @@ const HomeView: React.FC<HomeViewProps> = ({
     greeting,
     onSettingsClick,
     onThemeClick,
-    onFilesSelected
+    onFilesSelected,
+    onSearchClick
 }) => {
     const { profile, updateProfile } = useUserProfile();
     const { playlists, createPlaylist, deletePlaylist } = useLibrary();
@@ -156,43 +158,89 @@ const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* Quick Access Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+            {/* Import Actions Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                <div
+                    onClick={onSearchClick}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600/30 to-blue-600/30 backdrop-blur-xl border border-white/10 p-8 hover:border-white/30 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                >
+                    <div className="absolute top-0 right-0 p-8 opacity-30 group-hover:scale-110 group-hover:opacity-50 transition-all duration-500">
+                        <SearchIcon className="w-24 h-24 text-white" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-between min-h-[140px]">
+                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4 group-hover:bg-white/20 transition-colors">
+                            <SearchIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-bold text-white mb-2">Import from Netease</h3>
+                            <p className="text-white/60">Search and import songs from the cloud</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600/30 to-teal-600/30 backdrop-blur-xl border border-white/10 p-8 hover:border-white/30 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                >
+                    <div className="absolute top-0 right-0 p-8 opacity-30 group-hover:scale-110 group-hover:opacity-50 transition-all duration-500">
+                        <CloudDownloadIcon className="w-24 h-24 text-white" />
+                    </div>
+                    <div className="relative z-10 flex flex-col h-full justify-between min-h-[140px]">
+                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4 group-hover:bg-white/20 transition-colors">
+                            <CloudDownloadIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-bold text-white mb-2">Import Local Files</h3>
+                            <p className="text-white/60">Upload songs from your device</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Access Library */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-12 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                 <div
                     onClick={() => handleOpenQuickAccess('liked')}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500/20 to-rose-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                    className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/5 p-4 hover:bg-white/10 transition-all cursor-pointer active:scale-95"
                 >
-                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
-                        <HeartIcon className="w-12 h-12 text-white/20" />
-                    </div>
-                    <div className="relative z-10 flex flex-col h-full justify-end">
-                        <h3 className="text-2xl font-bold text-white mb-1">Liked Songs</h3>
-                        <p className="text-white/60">{likedCount} tracks</p>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <HeartIcon className="w-6 h-6 text-white filled" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-white">Liked Songs</h3>
+                            <p className="text-white/50 text-sm">{likedCount} tracks</p>
+                        </div>
                     </div>
                 </div>
 
                 <div
                     onClick={() => handleOpenQuickAccess('recent')}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                    className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/5 p-4 hover:bg-white/10 transition-all cursor-pointer active:scale-95"
                 >
-                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
-                        <ClockIcon className="w-12 h-12 text-white/20" />
-                    </div>
-                    <div className="relative z-10 flex flex-col h-full justify-end">
-                        <h3 className="text-2xl font-bold text-white mb-1">Recently Played</h3>
-                        <p className="text-white/60">{recentCount} tracks</p>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <ClockIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-white">Recent</h3>
+                            <p className="text-white/50 text-sm">{recentCount} tracks</p>
+                        </div>
                     </div>
                 </div>
 
                 <div
                     onClick={() => handleOpenQuickAccess('local')}
-                    className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 backdrop-blur-xl border border-white/5 p-6 hover:border-white/20 transition-all cursor-pointer hover:-translate-y-1 active:scale-95 duration-200"
+                    className="group relative overflow-hidden rounded-2xl bg-white/5 border border-white/5 p-4 hover:bg-white/10 transition-all cursor-pointer active:scale-95"
                 >
-                    <div className="absolute top-0 right-0 p-6 opacity-50 group-hover:scale-110 transition-transform duration-500">
-                        <CloudDownloadIcon className="w-12 h-12 text-white/20" />
-                    </div>
-                    <div className="relative z-10 flex flex-col h-full justify-end">
-                        <h3 className="text-2xl font-bold text-white mb-1">Local Files</h3>
-                        <p className="text-white/60">{localCount} tracks</p>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                            <CloudDownloadIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-white">Local Files</h3>
+                            <p className="text-white/50 text-sm">{localCount} tracks</p>
+                        </div>
                     </div>
                 </div>
             </div>
